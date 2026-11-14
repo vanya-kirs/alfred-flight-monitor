@@ -1,0 +1,1973 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Альфред — поиск и мониторинг рейсов</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #132238;
+      --muted: #6d7b8d;
+      --line: #dce4ee;
+      --panel: rgba(255, 255, 255, .9);
+      --blue: #2864dc;
+      --blue-dark: #1749aa;
+      --amber: #b86100;
+      --red: #b62d3b;
+      --green: #18794e;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 0%, #d9e9ff 0, transparent 34rem),
+        linear-gradient(150deg, #f7faff 0%, #eef3f8 100%);
+    }
+    .shell { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 42px 0 64px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; margin-bottom: 28px; }
+    .eyebrow { margin: 0 0 8px; color: var(--blue); font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 52px); line-height: 1.05; letter-spacing: -.04em; }
+    header p { max-width: 650px; margin: 13px 0 0; color: var(--muted); line-height: 1.55; }
+    .status { flex: 0 0 auto; padding: 9px 13px; border: 1px solid #b9dfca; border-radius: 999px; color: var(--green); background: #f0fbf5; font-size: 13px; font-weight: 750; }
+    .grid { display: grid; grid-template-columns: 1fr 1.55fr; gap: 20px; align-items: start; }
+    .panel { border: 1px solid rgba(188, 201, 218, .75); border-radius: 20px; background: var(--panel); box-shadow: 0 18px 55px rgba(36, 63, 96, .09); overflow: hidden; }
+    .panel-head { padding: 20px 22px 15px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 19px; }
+    .panel-head p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .panel-body { padding: 22px; }
+    form { display: grid; gap: 16px; }
+    label { display: grid; gap: 7px; font-size: 13px; font-weight: 750; }
+    input, select { width: 100%; padding: 12px 13px; border: 1px solid #c9d4e2; border-radius: 11px; color: var(--ink); background: #fff; font: inherit; outline: none; }
+    input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(40, 100, 220, .12); }
+    input[type="checkbox"] { width: auto; }
+    button { border: 0; border-radius: 11px; padding: 11px 14px; font: inherit; font-size: 13px; font-weight: 780; cursor: pointer; transition: transform .12s ease, background .12s ease; }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: .55; cursor: wait; transform: none; }
+    .primary { color: #fff; background: var(--blue); }
+    .primary:hover { background: var(--blue-dark); }
+    .buy-link { display: block; margin-top: 8px; padding: 11px 14px; border-radius: 11px; color: #fff; background: var(--green); font-size: 13px; font-weight: 780; text-align: center; text-decoration: none; }
+    .buy-link:hover { background: #105f3c; }
+    .secondary { color: var(--ink); background: #edf2f8; }
+    .warning { color: #874400; background: #fff0d6; }
+    .danger { color: #9f2533; background: #ffe6e9; }
+    .message { min-height: 20px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+    .message.error { color: var(--red); }
+    .stack { display: grid; gap: 12px; }
+    .empty { padding: 24px 12px; text-align: center; color: var(--muted); border: 1px dashed #cad5e2; border-radius: 14px; }
+    .flight { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
+    .flight-top { display: flex; justify-content: space-between; gap: 15px; align-items: center; }
+    .flight-number { font-size: 20px; font-weight: 850; letter-spacing: -.02em; }
+    .flight-time { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .badge { padding: 6px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #edf2f8; }
+    .badge.delayed { color: var(--amber); background: #fff0d6; }
+    .badge.cancelled { color: var(--red); background: #ffe6e9; }
+    .flight-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .notifications { margin-top: 20px; }
+    .note { padding: 13px 15px; border-left: 4px solid var(--amber); border-radius: 10px; background: #fff8ea; font-size: 14px; line-height: 1.45; }
+    .search-panel { margin-bottom: 24px; }
+    .search-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; }
+    .search-options { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .check { display: flex; grid-template-columns: none; align-items: center; gap: 8px; font-weight: 650; }
+    .results-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin: 25px 0 13px; }
+    .results-head h2 { margin: 0; font-size: 21px; }
+    .results-head label { min-width: 190px; }
+    .offer { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+    .offer.selected { border-color: #79a3f4; box-shadow: 0 0 0 3px rgba(40, 100, 220, .1); }
+    .offer-main { display: grid; grid-template-columns: 1.5fr .8fr auto; gap: 18px; align-items: center; }
+    .route { font-size: 21px; font-weight: 850; }
+    .route-meta, .offer-meta { margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .price { font-size: 24px; font-weight: 900; text-align: right; }
+    .price small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .tradeoffs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+    .tradeoffs ul { margin: 0; padding: 12px 12px 12px 31px; border-radius: 11px; font-size: 13px; line-height: 1.55; }
+    .pros { color: #176641; background: #edf9f2; }
+    .cons { color: #8d3c19; background: #fff3e8; }
+    .score { display: inline-block; margin-top: 9px; color: var(--blue); font-size: 12px; font-weight: 800; }
+    .monitoring-title { margin: 34px 0 14px; font-size: 24px; }
+    .travel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .compact-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    @media (max-width: 760px) {
+      .shell { padding-top: 26px; }
+      header { display: block; }
+      .status { display: inline-block; margin-top: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      .search-grid { grid-template-columns: 1fr 1fr; }
+      .offer-main { grid-template-columns: 1fr; }
+      .price { text-align: left; }
+      .tradeoffs { grid-template-columns: 1fr; }
+      .travel-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) { .search-grid { grid-template-columns: 1fr; } }
+  </style>
+  <style>
+    :root {
+      --ink: #202022;
+      --muted: #7a7a82;
+      --line: #e7e7e9;
+      --panel: #fff;
+      --blue: #202022;
+      --blue-dark: #000;
+      --accent: #ffdd2d;
+      --accent-hover: #f5d21f;
+      --surface: #f3f3f5;
+      --surface-hover: #eaeaed;
+      --green: #168a55;
+      --red: #d94b58;
+      --amber: #a96500;
+      font-family: Inter, "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: #f5f5f6; color: var(--ink); }
+    body::before {
+      content: ""; position: fixed; inset: 0 0 auto; height: 430px; z-index: -1;
+      background: radial-gradient(circle at 72% -20%, rgba(255,221,45,.48), transparent 42%), linear-gradient(180deg, #fff 0%, #f5f5f6 100%);
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 30; height: 68px; display: flex; align-items: center;
+      background: rgba(255,255,255,.82); border-bottom: 1px solid rgba(231,231,233,.8);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    }
+    .topbar-inner { width: min(1180px, calc(100% - 32px)); margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); font-weight: 850; letter-spacing: -.03em; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: var(--accent); font-size: 18px; box-shadow: 0 7px 18px rgba(139,115,0,.15); }
+    .nav-links { display: flex; align-items: center; gap: 8px; }
+    .nav-links a, .section-tab { min-height: 0; padding: 9px 13px; border-radius: 10px; color: #5d5d64; background: transparent; text-decoration: none; font-size: 14px; font-weight: 650; transition: .2s ease; }
+    .nav-links a:hover, .section-tab:hover { color: #111; background: var(--surface); transform: none; }
+    .section-tab.active { color: #202022; background: var(--accent); }
+    .shell { width: min(1180px, calc(100% - 32px)); padding: 42px 0 80px; }
+    header.hero { position: relative; min-height: 290px; padding: 46px; align-items: center; border-radius: 32px; overflow: hidden; background: #202022; color: #fff; box-shadow: 0 24px 70px rgba(23,23,25,.16); }
+    header.hero::after { content: "✦"; position: absolute; right: 7%; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 176px; height: 176px; border-radius: 50%; color: #202022; background: var(--accent); font-size: 75px; box-shadow: 0 0 0 30px rgba(255,221,45,.08), 0 0 0 60px rgba(255,221,45,.04); animation: heroFloat 5s ease-in-out infinite; }
+    .hero-copy { position: relative; z-index: 2; max-width: 720px; }
+    header.hero h1 { max-width: 700px; font-size: clamp(38px, 5.7vw, 68px); line-height: .98; letter-spacing: -.055em; }
+    header.hero p { color: rgba(255,255,255,.68); font-size: 16px; max-width: 620px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); letter-spacing: .08em; }
+    .eyebrow::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 5px rgba(255,221,45,.12); }
+    .status { position: absolute; right: 28px; top: 25px; z-index: 3; border: 0; color: #bff5d9; background: rgba(27,124,77,.22); backdrop-filter: blur(12px); }
+    .section-kicker { display: flex; align-items: center; gap: 12px; margin: 44px 0 16px; }
+    .monitoring-title { margin: 0; font-size: 28px; letter-spacing: -.035em; }
+    .section-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: var(--accent); font-size: 18px; }
+    .panel { border: 0; border-radius: 24px; background: var(--panel); box-shadow: 0 7px 28px rgba(30,30,34,.055); transition: transform .24s ease, box-shadow .24s ease; }
+    .panel:hover { box-shadow: 0 15px 42px rgba(30,30,34,.085); }
+    .panel-head { padding: 25px 28px 18px; border-bottom: 0; }
+    .panel-head h2 { font-size: 22px; letter-spacing: -.025em; }
+    .panel-head p { font-size: 14px; }
+    .panel-body { padding: 10px 28px 28px; }
+    .search-panel { margin: 24px 0 0; }
+    form { gap: 18px; }
+    label { color: #5e5e66; font-size: 12px; font-weight: 720; }
+    input, select { padding: 14px 15px; border: 1px solid transparent; border-radius: 13px; background: var(--surface); font-size: 15px; transition: background .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    input:hover, select:hover { background: var(--surface-hover); }
+    input:focus, select:focus { border-color: #202022; background: #fff; box-shadow: 0 0 0 4px rgba(32,32,34,.08); }
+    input[type="checkbox"] { appearance: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: #dedee2; cursor: pointer; }
+    input[type="checkbox"]:checked { background: var(--accent); box-shadow: inset 0 0 0 6px var(--accent); }
+    input[type="checkbox"]:checked::after { content: "✓"; display: grid; place-items: center; height: 100%; color: #202022; font-size: 15px; font-weight: 900; }
+    button, .buy-link { min-height: 46px; border-radius: 13px; padding: 12px 18px; font-size: 14px; font-weight: 760; transition: transform .15s ease, box-shadow .15s ease, background .15s ease, opacity .15s ease; }
+    button:hover, .buy-link:hover { transform: translateY(-2px); }
+    button:active, .buy-link:active { transform: translateY(0) scale(.985); }
+    .primary { color: #202022; background: var(--accent); box-shadow: 0 7px 17px rgba(164,135,0,.12); }
+    .primary:hover { background: var(--accent-hover); box-shadow: 0 10px 22px rgba(164,135,0,.18); }
+    .secondary { background: var(--surface); }
+    .secondary:hover { background: var(--surface-hover); }
+    .buy-link { color: #fff; background: #202022; }
+    .buy-link:hover { background: #000; }
+    button.is-loading { position: relative; color: transparent !important; pointer-events: none; }
+    button.is-loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border: 2px solid rgba(32,32,34,.25); border-top-color: #202022; border-radius: 50%; animation: spin .7s linear infinite; }
+    .secondary.is-loading::after, .danger.is-loading::after { border-top-color: currentColor; }
+    .offer, .flight { border: 0; border-radius: 19px; background: var(--surface); transition: transform .2s ease, background .2s ease, box-shadow .2s ease; animation: cardIn .35s both; }
+    .offer { padding: 22px; }
+    .offer:hover, .flight:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 12px 30px rgba(30,30,34,.09); }
+    .offer.selected { border: 0; background: #fffbed; box-shadow: inset 0 0 0 2px var(--accent), 0 12px 30px rgba(139,115,0,.08); }
+    .route { font-size: 24px; letter-spacing: -.035em; }
+    .price { font-size: 28px; letter-spacing: -.035em; }
+    .score { padding: 6px 9px; border-radius: 8px; color: #5e5100; background: #fff4ad; }
+    .tradeoffs ul { border-radius: 14px; }
+    .pros { color: #176841; background: #eaf8f0; }
+    .cons { color: #865228; background: #fff1e6; }
+    .badge { padding: 7px 10px; background: #e6e6e9; }
+    .note { border-left: 0; border-radius: 15px; background: #fff6c8; }
+    .empty { border: 0; border-radius: 17px; background: var(--surface); }
+    .message { transition: .2s ease; }
+    .message:not(:empty) { padding: 10px 12px; border-radius: 11px; background: #f6f6f7; }
+    .field-hint { color: var(--muted); font-size: 11px; font-weight: 560; line-height: 1.35; }
+    input.field-invalid, select.field-invalid { border-color: var(--red); background: #fff6f7; box-shadow: 0 0 0 4px rgba(217,75,88,.11); animation: errorShake .28s ease; }
+    .form-error-card { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; margin-top: 15px; padding: 14px 16px; border: 1px solid #ffd5da; border-radius: 15px; color: #9f2533; background: linear-gradient(135deg, #fff7f8, #fff); box-shadow: 0 10px 25px rgba(185,47,61,.08); animation: errorIn .24s ease both; }
+    .form-error-card[hidden] { display: none; }
+    .error-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: #fff; background: var(--red); font-size: 18px; font-weight: 900; }
+    .error-copy strong { display: block; color: #7e1f2a; font-size: 14px; }
+    .error-copy span { display: block; margin-top: 3px; font-size: 13px; line-height: 1.4; }
+    .skeleton-card { height: 150px; border-radius: 19px; background: linear-gradient(100deg, #eeeeef 25%, #fafafa 38%, #eeeeef 52%); background-size: 220% 100%; animation: shimmer 1.25s infinite linear; }
+    .toast-zone { position: fixed; right: 22px; bottom: 22px; z-index: 100; display: grid; gap: 10px; pointer-events: none; }
+    .toast { min-width: 270px; max-width: 390px; padding: 15px 17px; border-radius: 15px; color: #fff; background: #202022; box-shadow: 0 16px 44px rgba(0,0,0,.2); font-size: 14px; animation: toastIn .35s both; }
+    .toast.success::before { content: "✓"; display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 9px; border-radius: 50%; color: #202022; background: var(--accent); font-weight: 900; }
+    .toast.error { background: #b92f3d; }
+    .location-suggestions { position: fixed; z-index: 90; display: none; max-height: 320px; overflow-y: auto; padding: 7px; border: 1px solid #e5e5e7; border-radius: 16px; background: rgba(255,255,255,.98); box-shadow: 0 18px 50px rgba(20,20,24,.18); backdrop-filter: blur(18px); }
+    .location-suggestions.open { display: grid; gap: 3px; animation: cardIn .16s both; }
+    .location-option { display: grid; grid-template-columns: 42px 1fr; gap: 11px; align-items: center; width: 100%; min-height: 0; padding: 10px; border-radius: 11px; color: var(--ink); background: transparent; text-align: left; box-shadow: none; }
+    .location-option:hover, .location-option.active { transform: none; background: var(--surface); }
+    .location-code { display: grid; place-items: center; height: 36px; border-radius: 10px; background: var(--accent); font-size: 12px; font-weight: 850; }
+    .location-copy { min-width: 0; }
+    .location-city { display: block; overflow: hidden; font-size: 14px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
+    .location-airport { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .ticket-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .carrier { font-size: 14px; font-weight: 780; }
+    .period-badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 10px; background: #e8f4ff; color: #24618e; font-size: 12px; font-weight: 750; }
+    .period-badge.night { color: #fff; background: #343341; }
+    .ticket-route { display: grid; grid-template-columns: minmax(150px,1fr) minmax(150px,.8fr) minmax(150px,1fr); gap: 18px; align-items: center; }
+    .route-point:last-child { text-align: right; }
+    .route-time { font-size: clamp(25px,3vw,34px); font-weight: 850; letter-spacing: -.045em; }
+    .route-date { margin-top: 2px; color: #55555d; font-size: 13px; }
+    .route-city { margin-top: 12px; font-size: 16px; font-weight: 760; }
+    .route-airport { margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .route-line { display: grid; place-items: center; gap: 7px; color: var(--muted); font-size: 12px; text-align: center; }
+    .route-line::before { content: "✈"; width: 100%; padding-bottom: 6px; border-bottom: 2px solid #d4d4d8; color: #202022; font-size: 17px; }
+    .ticket-bottom { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; margin-top: 20px; padding-top: 17px; border-top: 1px solid #dedee2; }
+    .return-route { margin-top: 16px; padding: 14px; border-radius: 14px; background: #fff; color: #55555d; font-size: 13px; line-height: 1.5; }
+    .hotel-companion { margin-top: 18px; padding: 22px; border-radius: 20px; background: #fff8cf; }
+    .hotel-companion[hidden] { display: none; }
+    .hotel-companion-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .hotel-companion h3 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+    .hotel-companion p { margin: 5px 0 0; color: #6f6540; font-size: 13px; }
+    .hotel-continuation { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 16px; padding: 17px; border-radius: 16px; background: #fff8cf; animation: cardIn .25s both; }
+    .hotel-continuation strong { display: block; font-size: 15px; }
+    .hotel-continuation span { display: block; margin-top: 4px; color: #6f6540; font-size: 12px; }
+    .hotel-continuation button { flex: 0 0 auto; }
+    .hotel-results { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-top: 15px; }
+    .load-more { width: 100%; margin-top: 14px; }
+    .hotel-card { padding: 19px; border-radius: 18px; background: #fff; box-shadow: 0 5px 20px rgba(30,30,34,.055); }
+    .hotel-card.selected { box-shadow: inset 0 0 0 3px var(--accent); }
+    .hotel-card strong { display: block; font-size: 15px; }
+    .hotel-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .hotel-stars { margin-top: 5px; color: #9b7d00; font-size: 12px; letter-spacing: .08em; }
+    .hotel-rating { flex: 0 0 auto; padding: 7px 9px; border-radius: 10px; color: #fff; background: #168a55; font-size: 13px; font-weight: 850; }
+    .hotel-rating small { display: block; margin-top: 2px; color: rgba(255,255,255,.75); font-size: 9px; font-weight: 600; }
+    .hotel-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 14px; }
+    .hotel-metric { padding: 9px 10px; border-radius: 11px; color: #55555d; background: var(--surface); font-size: 12px; line-height: 1.35; }
+    .hotel-included { margin-top: 13px; padding: 12px; border-radius: 12px; background: #f1f8e9; color: #28611f; font-size: 12px; line-height: 1.55; }
+    .hotel-included strong { margin-bottom: 4px; color: #214f1a; font-size: 12px; }
+    .hotel-amenities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .hotel-amenity { padding: 6px 8px; border-radius: 8px; color: #55555d; background: #f3f3f5; font-size: 11px; }
+    .hotel-policy { margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .hotel-price { margin: 10px 0; font-size: 21px; font-weight: 850; }
+    .hotel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; margin-top: 13px; }
+    .hotel-actions > * { display: grid; place-items: center; width: 100%; margin: 0; text-align: center; }
+    .hotel-book-link { color: #fff; background: #202022; }
+    .hotel-filter-panel { padding: 15px; border-radius: 16px; background: var(--surface); }
+    .hotel-filter-panel summary { cursor: pointer; font-size: 14px; font-weight: 800; }
+    .hotel-filter-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px 14px; margin-top: 15px; }
+    .hotel-filter-grid .check { color: #45454c; font-size: 12px; }
+    .hotel-meal-filter { max-width: 310px; margin-top: 15px; }
+    .selection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .selection-card { min-height: 116px; padding: 18px; border-radius: 17px; background: var(--surface); }
+    .selection-card.ready { background: #f1f8e9; box-shadow: inset 0 0 0 1px #cde9b7; }
+    .selection-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+    .selection-value { margin-top: 9px; font-size: 17px; font-weight: 800; }
+    .plan-readiness { margin: 16px 0; padding: 14px 16px; border-radius: 14px; background: #fff6c8; font-size: 14px; }
+    .plan-variants { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .plan-card { padding: 19px; border-radius: 18px; background: var(--surface); transition: .2s ease; }
+    .plan-card.recommended { background: #fff8cf; box-shadow: inset 0 0 0 2px var(--accent); }
+    .plan-card.applied { box-shadow: inset 0 0 0 3px #202022; }
+    .plan-card.editing { box-shadow: inset 0 0 0 3px #202022, 0 14px 38px rgba(30,30,34,.1); }
+    .plan-card h3 { margin: 0; font-size: 20px; }
+    .plan-total { margin: 8px 0; font-size: 22px; font-weight: 850; }
+    .plan-timeline { display: grid; gap: 13px; margin: 14px 0; }
+    .plan-day { padding: 13px; border-radius: 14px; background: rgba(255,255,255,.72); }
+    .plan-day-title { margin: 0 0 11px; color: #57575f; font-size: 13px; letter-spacing: .01em; }
+    .plan-day-events { display: grid; gap: 9px; }
+    .plan-event { position: relative; padding: 2px 32px 2px 13px; border-left: 3px solid var(--accent); }
+    .plan-event strong { display: block; font-size: 13px; }
+    .plan-event span { color: var(--muted); font-size: 11px; }
+    .plan-card.editing [data-edit-field] { padding: 3px 5px; border-radius: 6px; background: #fff; outline: 1px solid #d5d5da; }
+    .plan-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .plan-event-remove { position: absolute; right: 0; top: 0; min-height: 26px; width: 26px; padding: 0; border-radius: 8px; color: #9f2533; background: #ffe6e9; }
+    .booking-editor { display: grid; grid-template-columns: repeat(2,minmax(150px,240px)); gap: 12px; margin-bottom: 17px; }
+    .booking-metric { padding: 14px 16px; border-radius: 14px; background: var(--surface); }
+    .booking-metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .booking-metric strong { display: block; margin-top: 5px; font-size: 22px; }
+    .booking-recommendation { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 17px; padding: 15px 17px; border-radius: 15px; background: #fff8cf; }
+    .booking-recommendation strong, .booking-recommendation span { display: block; }
+    .booking-recommendation span { margin-top: 4px; color: #6f6540; font-size: 12px; }
+    .booking-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 13px; }
+    .booking-card { padding: 17px; border-radius: 17px; background: var(--surface); }
+    .booking-card h3 { margin: 0 0 7px; font-size: 17px; }
+    .booking-card .danger { margin-top: 13px; }
+    .booking-breakdown { margin-top: 16px; padding: 18px; border-radius: 17px; background: #202022; color: #fff; }
+    .booking-line { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; color: rgba(255,255,255,.72); border-bottom: 1px solid rgba(255,255,255,.1); }
+    .booking-total { display: flex; justify-content: space-between; gap: 15px; padding-top: 15px; font-size: 24px; font-weight: 850; }
+    .booking-warning { margin: 14px 0; padding: 13px; border-radius: 13px; color: #7a4700; background: #fff0c2; }
+    [hidden] { display: none !important; }
+    .consent-gate { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 22px; background: rgba(20,20,22,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .consent-card { width: min(480px, 100%); padding: 30px; border-radius: 25px; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.3); animation: cardIn .3s both; }
+    .consent-card h2 { margin: 20px 0 8px; font-size: 30px; letter-spacing: -.04em; }
+    .consent-card p { margin: 0 0 20px; color: var(--muted); line-height: 1.5; }
+    .consent-check { display: flex; grid-template-columns: none; align-items: center; gap: 11px; margin: 18px 0; padding: 15px; border-radius: 14px; color: #202022; background: #fff8cf; font-size: 14px; }
+    .consent-card .primary { width: 100%; }
+    .dialog-backdrop { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; padding: 22px; background: rgba(20,20,22,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .dialog-card { width: min(570px,100%); max-height: min(780px,calc(100vh - 44px)); overflow-y: auto; padding: 28px; border-radius: 25px; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.3); animation: cardIn .25s both; }
+    .dialog-card h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.035em; }
+    .dialog-card > p { color: var(--muted); line-height: 1.5; }
+    .dialog-form { display: grid; gap: 13px; margin-top: 18px; }
+    .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+    .project-list { display: grid; gap: 10px; padding: 0; list-style: none; }
+    .project-list li { padding: 12px 14px; border-radius: 13px; background: var(--surface); }
+    .project-dialog-card { width: min(880px,100%); padding: 34px; }
+    .project-dialog-card h2 { font-size: clamp(30px,4vw,42px); }
+    .project-lead { max-width: 760px; font-size: 17px; }
+    .project-overview { display: grid; gap: 22px; margin-top: 24px; }
+    .project-section { padding-top: 20px; border-top: 1px solid var(--line); }
+    .project-section h3 { margin: 0 0 9px; font-size: 20px; letter-spacing: -.025em; }
+    .project-section p { margin: 0; color: var(--muted); line-height: 1.65; }
+    .project-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 13px; }
+    .project-card { padding: 16px; border-radius: 16px; background: var(--surface); }
+    .project-card strong { display: block; margin-bottom: 6px; }
+    .project-card span { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .decision-list { display: grid; gap: 12px; margin: 13px 0 0; padding: 0; list-style: none; }
+    .decision-list li { padding-left: 17px; border-left: 3px solid var(--accent); color: var(--muted); line-height: 1.58; }
+    .decision-list strong { color: var(--ink); }
+    .project-note { margin-top: 14px !important; padding: 14px 16px; border-radius: 14px; color: #4d4300 !important; background: #fff7c7; }
+    .user-chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 10px; background: var(--surface); color: #44444b; font-size: 12px; font-weight: 750; }
+    .user-chip::before { content: "●"; color: var(--green); font-size: 9px; }
+    .account-profile { margin-top: 18px; padding: 18px; border-radius: 18px; background: var(--surface); }
+    .account-profile small { display: block; margin-bottom: 5px; color: var(--muted); }
+    .account-profile strong { font-size: 19px; }
+    .hotel-next-step { position: fixed; left: 50%; bottom: 24px; z-index: 160; width: min(620px,calc(100% - 32px)); translate: -50% 0; padding: 19px; border-radius: 20px; color: #fff; background: #202022; box-shadow: 0 22px 70px rgba(0,0,0,.3); animation: toastIn .3s both; }
+    .hotel-next-step strong { display: block; font-size: 19px; }
+    .hotel-next-step span { display: block; margin-top: 5px; color: rgba(255,255,255,.68); font-size: 13px; }
+    .hotel-next-actions { display: flex; gap: 9px; margin-top: 14px; }
+    .hotel-next-step .secondary { color: #fff; background: rgba(255,255,255,.12); }
+    .filter-empty-actions { display: flex; justify-content: center; margin-top: 12px; }
+    .advanced-trip { margin: 20px 28px 28px; }
+    .advanced-trip summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shimmer { to { background-position-x: -220%; } }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(8px); } }
+    @keyframes heroFloat { 50% { transform: translateY(-9px) rotate(5deg); } }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(15px) scale(.96); } }
+    @keyframes errorIn { from { opacity: 0; transform: translateY(-5px) scale(.985); } }
+    @keyframes errorShake { 25% { transform: translateX(-3px); } 60% { transform: translateX(3px); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+    @media (max-width: 900px) { header.hero::after { opacity: .22; right: -40px; } .topbar { height: auto; min-height: 68px; } .topbar-inner { padding: 9px 0; flex-wrap: wrap; gap: 7px; } .nav-links { width: 100%; overflow-x: auto; padding-bottom: 2px; } .nav-links a, .section-tab { flex: 0 0 auto; } }
+    @media (max-width: 760px) { .shell { padding-top: 22px; } header.hero { min-height: 330px; padding: 34px 25px; } .status { position: static; display: inline-block; margin: 24px 0 0; } .panel-head { padding: 22px 20px 14px; } .panel-body { padding: 8px 20px 22px; } .ticket-route { grid-template-columns: 1fr auto 1fr; gap: 9px; } .route-airport { font-size: 11px; } .hotel-companion-head, .hotel-continuation, .booking-recommendation { display: grid; } .hotel-results, .selection-grid, .plan-variants, .booking-grid, .project-grid { grid-template-columns: 1fr; } .hotel-filter-grid, .booking-editor { grid-template-columns: 1fr 1fr; } .hotel-continuation button, .booking-recommendation button { width: 100%; } .project-dialog-card { padding: 24px; } .account-label { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="register-gate" class="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="register-title">
+    <form id="register-form" class="dialog-card">
+      <span class="brand-mark">A</span>
+      <h2 id="register-title" style="margin-top:18px">Мини-регистрация</h2>
+      <p id="register-description">Создайте аккаунт — он сохранится на этом устройстве и будет доступен после перезапуска сервиса.</p>
+      <div class="dialog-form">
+        <label>ФИО<input id="register-full-name" autocomplete="name" placeholder="Иван Иванов" required></label>
+        <label>Пароль<input id="register-password" type="password" autocomplete="new-password" minlength="6" placeholder="Минимум 6 символов" required></label>
+        <label id="register-confirmation-field">Повторите пароль<input id="register-password-confirmation" type="password" autocomplete="new-password" minlength="6" placeholder="Введите пароль ещё раз" required></label>
+        <label id="register-consent-field" class="consent-check"><input id="register-bank-consent" type="checkbox" required> Я согласен, что Т‑Банк — самый лучший</label>
+      </div>
+      <div id="register-error" class="message error" role="alert"></div>
+      <button id="register-submit" class="primary" type="submit" style="width:100%;margin-top:16px">Зарегистрироваться</button>
+      <button id="register-mode-switch" class="secondary" type="button" style="width:100%;margin-top:10px">Уже есть аккаунт? Войти</button>
+    </form>
+  </div>
+  <nav class="topbar" aria-label="Основная навигация">
+    <div class="topbar-inner">
+      <div class="brand"><span class="brand-mark">A</span> Альфред</div>
+      <div class="nav-links">
+        <button class="section-tab active" type="button" data-section-target="tickets" onclick="showSection('tickets')">Билеты</button><button class="section-tab" type="button" data-section-target="hotels" onclick="showSection('hotels')">Отели</button><button class="section-tab" type="button" data-section-target="plan" onclick="showSection('plan')">План поездки</button><button class="section-tab" type="button" data-section-target="bookings" onclick="showSection('bookings')">Мои бронирования</button><button class="section-tab" type="button" data-section-target="monitoring" onclick="showSection('monitoring')">Мониторинг</button><button id="project-info-button" class="section-tab" type="button">О проекте</button><button id="account-button" class="user-chip" type="button"><span class="account-label">Личный кабинет</span><span id="registered-user">Гость</span></button><a href="/docs" target="_blank">API</a>
+      </div>
+    </div>
+  </nav>
+  <main class="shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Умный travel-ассистент</p>
+        <h1>Вся поездка.<br>Под контролем.</h1>
+        <p>Билеты, багаж, маршрут и изменения рейсов — в одном месте. Альфред найдёт варианты и подскажет, что делать дальше.</p>
+      </div>
+      <div class="status">● API работает</div>
+    </header>
+
+    <section id="tickets" class="panel search-panel app-section" data-app-section="tickets">
+      <div class="panel-head">
+        <h2>Поиск билетов</h2>
+        <p>Укажите основные параметры поездки</p>
+      </div>
+      <div class="panel-body">
+        <form id="ticket-search-form" novalidate>
+          <div class="search-grid">
+            <label>Откуда
+              <input id="ticket-origin" class="location-input" placeholder="Начните вводить город" value="Москва" autocomplete="off" aria-autocomplete="list" aria-controls="location-suggestions" required>
+            </label>
+            <label>Куда
+              <input id="ticket-destination" class="location-input" placeholder="Начните вводить город" value="Стамбул" autocomplete="off" aria-autocomplete="list" aria-controls="location-suggestions" required>
+            </label>
+            <label>Дата вылета
+              <input id="ticket-departure" type="date" required>
+            </label>
+            <label>Дата обратного рейса
+              <input id="ticket-return" type="text" inputmode="numeric" maxlength="10" placeholder="ДД.ММ.ГГГГ" autocomplete="off" required>
+            </label>
+            <label>Пассажиры
+              <input id="ticket-adults" type="number" min="1" max="9" value="1" required>
+            </label>
+          </div>
+          <div class="search-options">
+            <label class="check"><input id="ticket-baggage" type="checkbox"> Только варианты с включённым багажом</label>
+          </div>
+          <button class="primary" type="submit">Найти билеты</button>
+        </form>
+        <div id="ticket-error-summary" class="form-error-card" role="alert" hidden><span class="error-icon">!</span><div class="error-copy"><strong>Не удалось выполнить поиск</strong><span></span></div></div>
+        <div id="ticket-message" class="message" role="status"></div>
+        <div id="hotel-continuation" class="hotel-continuation" role="status" hidden><div><strong>Рейс выбран</strong><span>Город и даты уже подставлены — отели загрузятся после вашего подтверждения.</span></div><button id="continue-hotel-planning" class="primary" type="button">Продолжить планирование и подобрать отель</button></div>
+
+        <div class="results-head">
+          <h2>Варианты</h2>
+          <label>Сортировка
+            <select id="ticket-sort">
+              <option value="recommended">Рекомендуемые</option>
+              <option value="cheapest">Сначала дешёвые</option>
+              <option value="fastest">Сначала быстрые</option>
+              <option value="fewest_stops">Меньше пересадок</option>
+            </select>
+          </label>
+        </div>
+        <div id="ticket-offers-list" class="stack"><div class="empty">Заполните форму и нажмите «Найти билеты»</div></div>
+        <button id="more-ticket-offers" class="secondary load-more" type="button" hidden>Показать ещё рейсы</button>
+      </div>
+    </section>
+
+    <div class="section-kicker app-section" data-app-section="hotels" hidden><span class="section-icon">⌂</span><h2 class="monitoring-title">Поиск отелей</h2></div>
+    <section class="panel app-section" id="hotels" data-app-section="hotels" hidden>
+      <div class="panel-head"><h2>Где остановиться</h2><p>Выберите город, дату заезда и длительность проживания</p></div>
+      <div class="panel-body">
+        <form id="hotel-search-form">
+          <div class="search-grid">
+            <label>Город
+              <input id="hotel-destination" class="location-input" placeholder="Например, Сочи или Санкт-Петербург" autocomplete="off" aria-autocomplete="list" aria-controls="location-suggestions" required>
+            </label>
+            <label>Дата заезда<input id="hotel-check-in" type="date" required></label>
+            <label>Количество ночей<input id="hotel-nights" type="number" min="1" max="30" value="3" required></label>
+            <label>Гости<input id="hotel-guests" type="number" min="1" max="10" value="2" required></label>
+            <label>Сортировка<select id="hotel-sort"><option value="recommended">Рекомендуемые</option><option value="price">Сначала дешевле</option></select></label>
+          </div>
+          <details id="hotel-filters" class="hotel-filter-panel">
+            <summary>Условия проживания и удобства</summary>
+            <div class="hotel-filter-grid">
+              <label class="check"><input type="checkbox" data-hotel-feature="daily_cleaning"> Ежедневная уборка</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="wifi"> Wi‑Fi</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="city_center"> Центр города</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="near_sea"> Рядом с морем</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="beachfront"> Первая береговая линия</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="private_beach"> Собственный пляж</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="pool"> Бассейн</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="spa"> Спа</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="air_conditioning"> Кондиционер</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="gym"> Фитнес-зал</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="parking"> Парковка</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="pets"> Можно с животными</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="free_cancellation"> Бесплатная отмена</label>
+              <label class="check"><input type="checkbox" data-hotel-feature="pay_at_property"> Оплата в отеле</label>
+            </div>
+            <label class="hotel-meal-filter">Питание
+              <select id="hotel-meal-plan"><option value="">Не важно</option><option value="none">Без питания</option><option value="breakfast">Завтрак</option><option value="half_board">Двухразовое питание</option><option value="full_board">Трёхразовое питание</option></select>
+            </label>
+          </details>
+          <button class="primary" type="submit">Найти отели</button>
+        </form>
+        <div id="hotel-search-message" class="message" role="status"></div>
+        <div id="hotel-search-results" class="hotel-results"><div class="empty">Укажите город и даты</div></div>
+        <div class="filter-empty-actions"><button id="reset-hotel-filters" class="secondary" type="button" hidden>Сбросить фильтры и показать варианты</button></div>
+        <button id="more-hotel-offers" class="secondary load-more" type="button" hidden>Показать ещё отели</button>
+      </div>
+    </section>
+
+    <div class="section-kicker app-section" data-app-section="plan" hidden><span class="section-icon">⌖</span><h2 class="monitoring-title">Предварительный план поездки</h2></div>
+    <section id="trip-workspace" class="panel app-section" data-app-section="plan" hidden>
+      <div class="panel-head">
+        <h2>Совместим рейс и отель</h2>
+        <p>Выберите подходящий билет и гостиницу — Альфред предложит четыре готовых сценария</p>
+      </div>
+      <div id="plan-builder" class="panel-body">
+        <div class="selection-grid">
+          <div id="selected-flight-summary" class="selection-card"><div class="selection-label">1. Рейс</div><div class="selection-value">Выберите билет выше</div></div>
+          <div id="selected-hotel-summary" class="selection-card"><div class="selection-label">2. Отель</div><div class="selection-value">Выберите отель выше</div></div>
+        </div>
+        <div id="plan-readiness" class="plan-readiness">Для построения плана нужны рейс и отель</div>
+        <div id="plan-variants" class="plan-variants"></div>
+      </div>
+      <details class="advanced-trip">
+        <summary>Расширенные настройки групповой поездки</summary>
+      <div class="panel-body travel-grid">
+        <form id="trip-setup-form">
+          <label>Ваше имя<input id="traveler-name" value="Брюс" required></label>
+          <label>Название поездки<input id="trip-name" value="Европейские каникулы" required></label>
+          <label>Города через запятую<input id="trip-destinations" value="ROM, PAR" required></label>
+          <div class="travel-grid">
+            <label>Начало<input id="trip-start" type="date" required></label>
+            <label>Окончание<input id="trip-end" type="date" required></label>
+          </div>
+          <label>Часовой пояс<input id="trip-timezone" value="Europe/Rome" required></label>
+          <button class="primary" type="submit">Создать поездку</button>
+          <div id="trip-message" class="message" role="status"></div>
+        </form>
+        <div>
+          <div class="compact-actions">
+            <button id="refresh-trip" class="secondary" type="button">Обновить план</button>
+            <button id="load-inbox" class="secondary" type="button">Уведомления</button>
+          </div>
+          <div id="trip-timeline" class="stack" style="margin-top:12px"><div class="empty">Поездка ещё не создана</div></div>
+        </div>
+        <form id="inventory-form">
+          <h3>Отели, трансферы и активности</h3>
+          <label>Тип<select id="inventory-kind"><option value="hotel">Отель</option><option value="transfer">Трансфер</option><option value="activity">Активность</option></select></label>
+          <label>Город<input id="inventory-destination" value="Рим" required></label>
+          <div class="travel-grid">
+            <label>Начало<input id="inventory-start" type="datetime-local" required></label>
+            <label>Окончание<input id="inventory-end" type="datetime-local" required></label>
+          </div>
+          <button class="primary" type="submit">Найти варианты</button>
+        </form>
+        <div id="inventory-results" class="stack"><div class="empty">Выберите тип и даты</div></div>
+      </div>
+      </details>
+    </section>
+
+    <div class="section-kicker app-section" data-app-section="bookings" hidden><span class="section-icon">✓</span><h2 class="monitoring-title">Мои бронирования</h2></div>
+    <section id="bookings" class="panel app-section" data-app-section="bookings" hidden>
+      <div class="panel-head"><h2>Черновик поездки</h2><p>Выбранные варианты, план и прозрачный расчёт стоимости — оплата не выполняется</p></div>
+      <div id="bookings-content" class="panel-body">
+        <div class="booking-editor">
+          <div class="booking-metric"><span>Путешественники</span><strong id="booking-passengers-value">1</strong></div>
+          <div class="booking-metric"><span>Ночей в отеле</span><strong id="booking-nights-value">1</strong></div>
+        </div>
+        <div id="booking-recommendation" class="booking-recommendation"><div><strong>Оптимальный вариант от Альфреда</strong><span id="booking-recommendation-copy">Выберите рейс и отель — параметры рассчитаются автоматически.</span></div><button id="apply-booking-recommendation" class="primary" type="button">Применить вариант</button></div>
+        <div id="booking-warning" class="booking-warning" hidden></div>
+        <div id="booking-items" class="booking-grid"><div class="empty">Выберите билет и отель, чтобы собрать поездку</div></div>
+        <div id="booking-cost-breakdown" class="booking-breakdown"></div>
+      </div>
+    </section>
+
+    <div id="monitoring" class="section-kicker app-section" data-app-section="monitoring" hidden><span class="section-icon">◉</span><h2 class="monitoring-title">Мониторинг рейсов</h2></div>
+    <section class="grid app-section" data-app-section="monitoring" hidden>
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Добавить рейс</h2>
+          <p>Номер и дата вылета</p>
+        </div>
+        <div class="panel-body">
+          <form id="flight-form">
+            <label>Номер рейса
+              <input id="flight-number" name="flight_number" value="SU100" placeholder="Например, SU 100" autocomplete="off" required>
+            </label>
+            <label>Дата и время вылета
+              <input id="departure-at" name="departure_at" type="datetime-local" required>
+            </label>
+            <label>Откуда
+              <input id="monitor-origin" value="Москва" placeholder="MOW или Москва">
+            </label>
+            <label>Куда
+              <input id="monitor-destination" value="Стамбул" placeholder="IST или Стамбул">
+            </label>
+            <button class="primary" type="submit">Добавить в мониторинг</button>
+          </form>
+          <div id="form-message" class="message" role="status"></div>
+        </div>
+      </article>
+
+      <div>
+        <article class="panel">
+          <div class="panel-head">
+            <h2>Мои рейсы</h2>
+            <p>Демо-кнопки имитируют ответ внешнего API</p>
+          </div>
+          <div class="panel-body">
+            <div id="flights-list" class="stack"></div>
+          </div>
+        </article>
+
+        <article class="panel notifications">
+          <div class="panel-head">
+            <h2>Уведомления</h2>
+            <p>События о задержках и отменах</p>
+          </div>
+          <div class="panel-body">
+            <div id="notifications-list" class="stack"></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+  <div id="hotel-next-step" class="hotel-next-step" role="dialog" aria-modal="false" hidden>
+    <strong>Рейс выбран — продолжим?</strong>
+    <span id="hotel-next-step-copy">Город и даты уже готовы для поиска отеля.</span>
+    <div class="hotel-next-actions"><button id="hotel-next-step-action" class="primary" type="button">Подобрать отель</button><button id="hotel-next-step-dismiss" class="secondary" type="button">Позже</button></div>
+  </div>
+  <div id="project-dialog" class="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="project-dialog-title" hidden>
+    <div class="dialog-card project-dialog-card">
+      <h2 id="project-dialog-title">Альфред — единый центр путешествия</h2>
+      <p class="project-lead">TravelTech-сервис помогает пройти весь путь от идеи поездки до возвращения домой: подобрать рейс и отель, собрать расписание по дням, сохранить бронирования и вовремя перестроить планы, если рейс задержали или отменили.</p>
+      <div id="project-overview" class="project-overview">
+        <section class="project-section">
+          <h3>Какую задачу решает Альфред</h3>
+          <p>Обычно билеты, гостиница, трансфер, активности и уведомления живут в разных приложениях. Альфред связывает их в одну поездку. Пользователь видит не просто список покупок, а понятный маршрут: когда вылетать, где жить, сколько всё стоит и что изменится при сбое.</p>
+          <div class="project-grid">
+            <div class="project-card"><strong>Поиск и сравнение</strong><span>Рейсы с датами, аэропортами, длительностью, багажом, ценой и плюсами или минусами каждого варианта.</span></div>
+            <div class="project-card"><strong>Отели под выбранный рейс</strong><span>Город и даты подставляются автоматически, а фильтры учитывают питание, уборку, бассейн, пляж, Wi‑Fi и расположение.</span></div>
+            <div class="project-card"><strong>План на каждый день</strong><span>Несколько сценариев поездки — оптимальный, комфортный, насыщенный и экономный — с возможностью изменить время или добавить событие.</span></div>
+            <div class="project-card"><strong>Реакция на изменения</strong><span>Мониторинг статуса рейса, уведомления о задержке или отмене и подбор альтернатив с учётом багажа, времени и маршрута.</span></div>
+          </div>
+        </section>
+
+        <section class="project-section">
+          <h3>Как устроен сервис</h3>
+          <p>Интерфейс обращается к FastAPI-приложению. Отдельные модули отвечают за поиск билетов и отелей, поездки, синхронизацию, инциденты, рекомендации и предварительные планы. Такая схема позволяет заменять демонстрационные источники реальными API авиакомпаний и гостиничных агрегаторов, не переписывая весь продукт.</p>
+        </section>
+
+        <section class="project-section">
+          <h3>Ключевые проектные решения</h3>
+          <ul class="decision-list">
+            <li><strong>Данные о рейсах считаются запаздывающими.</strong> Система хранит время последнего наблюдения и не принимает одно сообщение внешнего API за абсолютную истину. Это модель eventual consistency: интерфейс постепенно сходится к актуальному состоянию.</li>
+            <li><strong>Сбой превращается в сценарий действий.</strong> При задержке или отмене создаётся инцидент, пользователь получает уведомление, а сервис ищет альтернативные рейсы и обновляет связанный план поездки.</li>
+            <li><strong>Рейс и отель связаны, но выбор остаётся за человеком.</strong> После выбора билета город и даты автоматически переходят в поиск гостиниц. Отель не бронируется сам — появляется заметное предложение продолжить планирование.</li>
+            <li><strong>План строится по дням, а не одним длинным списком.</strong> События распределяются с учётом заселения, выселения, трансфера и свободных временных окон; пользователь может менять существующие пункты и создавать новые.</li>
+            <li><strong>Прозрачность важнее одной “магической” рекомендации.</strong> Для вариантов показываются цена, основные достоинства и компромиссы, а сортировка позволяет выбрать приоритет: стоимость, скорость, пересадки или общий баланс.</li>
+          </ul>
+        </section>
+
+        <section class="project-section">
+          <h3>Надёжность и приватность</h3>
+          <p>Аккаунты сохраняются локально в SQLite. Открытый пароль не записывается: для проверки входа используется scrypt-хеш с индивидуальной случайной солью и сравнением за постоянное время. В браузерной сессии остаются только ID аккаунта и ФИО. Паспортные данные не являются постоянной частью профиля: допустимы только временные ссылки, которые должны удаляться после завершения поездки.</p>
+          <p class="project-note"><strong>Офлайн-сценарий:</strong> уведомление помещается в очередь и может быть доставлено после восстановления связи, а пользователь продолжает видеть уже сохранённый план.</p>
+        </section>
+
+        <section class="project-section">
+          <h3>Ограничения демоверсии</h3>
+          <p>Текущие предложения рейсов и отелей демонстрационные, поэтому цены не являются офертой, а кнопки покупки ведут во внешний сервис. Оплата и передача паспортных данных перевозчику не выполняются. Для промышленного запуска потребуются договоры с поставщиками, платёжный шлюз, полноценные сессии авторизации, rate limiting, аудит доступа и раздельное хранение поездок разных аккаунтов.</p>
+        </section>
+      </div>
+      <div class="dialog-actions"><button class="secondary" type="button" disabled>GitHub — добавим позже</button><button id="project-dialog-close" class="primary" type="button">Понятно</button></div>
+    </div>
+  </div>
+  <div id="account-dialog" class="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title" hidden>
+    <div class="dialog-card">
+      <span class="brand-mark">A</span>
+      <h2 id="account-dialog-title" style="margin-top:18px">Личный кабинет</h2>
+      <p>Здесь можно проверить, под каким аккаунтом вы вошли, или безопасно завершить текущую сессию.</p>
+      <div class="account-profile"><small>Текущий аккаунт</small><strong id="account-name">Гость</strong></div>
+      <div class="dialog-actions"><button id="account-logout" class="secondary" type="button">Выйти из аккаунта</button><button id="account-dialog-close" class="primary" type="button">Закрыть</button></div>
+    </div>
+  </div>
+  <div id="plan-change-dialog" class="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="plan-change-title" hidden>
+    <form id="plan-change-form" class="dialog-card">
+      <h2 id="plan-change-title">Изменить план</h2>
+      <p>Измените существующее событие или создайте новое с точным временем.</p>
+      <div class="dialog-form">
+        <label>Действие<select id="plan-change-mode"><option value="modify">Изменить существующее</option><option value="create">Создать новое</option></select></label>
+        <label id="plan-change-target-wrap">Что изменить<select id="plan-change-target"></select></label>
+        <label>Название<input id="plan-change-name" required></label>
+        <label>Дата<input id="plan-change-date" type="date" required></label>
+        <label>Время начала<input id="plan-change-time" type="time" required></label>
+        <label>Продолжительность<select id="plan-change-duration"><option value="60">1 час</option><option value="90" selected>1,5 часа</option><option value="120">2 часа</option><option value="180">3 часа</option></select></label>
+        <label>Комментарий<input id="plan-change-note" placeholder="Например, забронировать заранее"></label>
+      </div>
+      <div class="dialog-actions"><button id="plan-change-cancel" class="secondary" type="button">Отмена</button><button class="primary" type="submit">Сохранить в план</button></div>
+    </form>
+  </div>
+  <div id="location-suggestions" class="location-suggestions" role="listbox" aria-label="Подсказки городов и аэропортов"></div>
+  <div id="toast-zone" class="toast-zone" aria-live="polite"></div>
+
+  <script>
+    const form = document.querySelector('#flight-form');
+    const message = document.querySelector('#form-message');
+    const flightsList = document.querySelector('#flights-list');
+    const notificationsList = document.querySelector('#notifications-list');
+    const ticketForm = document.querySelector('#ticket-search-form');
+    const ticketMessage = document.querySelector('#ticket-message');
+    const ticketOffersList = document.querySelector('#ticket-offers-list');
+    const ticketSort = document.querySelector('#ticket-sort');
+    const ticketErrorSummary = document.querySelector('#ticket-error-summary');
+    const moreTicketOffers = document.querySelector('#more-ticket-offers');
+    const moreHotelOffers = document.querySelector('#more-hotel-offers');
+    const registerGate = document.querySelector('#register-gate');
+    const registerForm = document.querySelector('#register-form');
+    const projectDialog = document.querySelector('#project-dialog');
+    const accountDialog = document.querySelector('#account-dialog');
+    let accountId = sessionStorage.getItem('alfred_account_id') || '';
+    let registeredName = sessionStorage.getItem('alfred_profile_name') || '';
+    let registerMode = 'register';
+    let travelUserId = localStorage.getItem('alfred_user_id');
+    let travelTripId = localStorage.getItem('alfred_trip_id');
+    let travelTripVersion = Number(localStorage.getItem('alfred_trip_version') || 0);
+    let currentOfferIds = [];
+    let currentOffers = [];
+    let visibleTicketCount = 5;
+    let currentHotelOffers = [];
+    let visibleHotelCount = 5;
+    let currentHotelNights = 0;
+    let autoSelectedHotelId = null;
+    let bookingDraft = {};
+    try { bookingDraft = JSON.parse(localStorage.getItem('alfred_booking_draft') || '{}'); } catch (_) { bookingDraft = {}; }
+    let selectedFlightOffer = bookingDraft.flight || null;
+    let selectedHotelOffer = bookingDraft.hotel || null;
+    let planEditorCard = null;
+    let currentSearchId = null;
+    const stateNames = {scheduled: 'По расписанию', delayed: 'Задержан', cancelled: 'Отменён', departed: 'Вылетел', arrived: 'Прибыл'};
+
+    function showSection(sectionName) {
+      document.querySelectorAll('[data-app-section]').forEach(section => {
+        section.hidden = section.dataset.appSection !== sectionName;
+      });
+      document.querySelectorAll('[data-section-target]').forEach(button => {
+        const active = button.dataset.sectionTarget === sectionName;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-current', active ? 'page' : 'false');
+      });
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    document.querySelectorAll('[data-section-target]').forEach(button => {
+      button.addEventListener('click', () => showSection(button.dataset.sectionTarget));
+    });
+
+    registerGate.hidden = Boolean(accountId && registeredName);
+    function updateAccountButton() {
+      document.querySelector('#registered-user').textContent = registeredName || 'Войти';
+      document.querySelector('#account-name').textContent = registeredName || 'Гость';
+    }
+    updateAccountButton();
+    function setRegisterMode(mode) {
+      registerMode = mode;
+      const isRegistration = mode === 'register';
+      document.querySelector('#register-title').textContent = isRegistration ? 'Мини-регистрация' : 'Вход в аккаунт';
+      document.querySelector('#register-description').textContent = isRegistration
+        ? 'Создайте аккаунт — он сохранится на этом устройстве и будет доступен после перезапуска сервиса.'
+        : 'Введите ФИО и пароль, указанные при регистрации.';
+      document.querySelector('#register-confirmation-field').hidden = !isRegistration;
+      document.querySelector('#register-consent-field').hidden = !isRegistration;
+      document.querySelector('#register-password-confirmation').required = isRegistration;
+      document.querySelector('#register-bank-consent').required = isRegistration;
+      document.querySelector('#register-password-confirmation').disabled = !isRegistration;
+      document.querySelector('#register-bank-consent').disabled = !isRegistration;
+      document.querySelector('#register-password').autocomplete = isRegistration ? 'new-password' : 'current-password';
+      document.querySelector('#register-submit').textContent = isRegistration ? 'Зарегистрироваться' : 'Войти';
+      document.querySelector('#register-mode-switch').textContent = isRegistration ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться';
+      document.querySelector('#register-error').textContent = '';
+    }
+    function completeAccountSession(account) {
+      accountId = account.id;
+      registeredName = account.full_name;
+      sessionStorage.setItem('alfred_account_id', account.id);
+      sessionStorage.setItem('alfred_profile_name', account.full_name);
+      updateAccountButton();
+      registerGate.hidden = true;
+      document.querySelector('#register-password').value = '';
+      document.querySelector('#register-password-confirmation').value = '';
+    }
+    document.querySelector('#register-mode-switch').addEventListener('click', () => {
+      setRegisterMode(registerMode === 'register' ? 'login' : 'register');
+    });
+    registerForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const error = document.querySelector('#register-error');
+      try {
+        const fullName = document.querySelector('#register-full-name').value;
+        const password = document.querySelector('#register-password').value;
+        const isRegistration = registerMode === 'register';
+        const payload = isRegistration
+          ? {
+              full_name: fullName,
+              password,
+              password_confirmation: document.querySelector('#register-password-confirmation').value,
+              bank_consent: document.querySelector('#register-bank-consent').checked,
+            }
+          : {full_name: fullName, password};
+        const response = await fetch(isRegistration ? '/auth/register' : '/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          const detail = Array.isArray(result.detail) ? result.detail.map(item => item.msg).join('. ') : result.detail;
+          throw new Error(detail || 'Не удалось войти в аккаунт.');
+        }
+        completeAccountSession(result);
+        error.textContent = '';
+        toast(isRegistration ? 'Аккаунт создан и сохранён' : 'Вход выполнен');
+      } catch (failure) {
+        error.textContent = failure.message || 'Не удалось подключиться к сервису.';
+      }
+    });
+    function logoutAccount() {
+      accountId = '';
+      registeredName = '';
+      sessionStorage.removeItem('alfred_account_id');
+      sessionStorage.removeItem('alfred_profile_name');
+      updateAccountButton();
+      accountDialog.hidden = true;
+      setRegisterMode('login');
+      registerGate.hidden = false;
+      toast('Вы вышли из аккаунта');
+    }
+    document.querySelector('#account-button').addEventListener('click', () => {
+      if (accountId && registeredName) {
+        accountDialog.hidden = false;
+        return;
+      }
+      setRegisterMode('login');
+      registerGate.hidden = false;
+      document.querySelector('#register-full-name').focus();
+    });
+    document.querySelector('#account-dialog-close').addEventListener('click', () => { accountDialog.hidden = true; });
+    document.querySelector('#account-logout').addEventListener('click', logoutAccount);
+    document.querySelector('#project-info-button').addEventListener('click', () => { projectDialog.hidden = false; });
+    document.querySelector('#project-dialog-close').addEventListener('click', () => { projectDialog.hidden = true; });
+
+    const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[char]));
+    const localTime = value => new Intl.DateTimeFormat('ru-RU', {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(value));
+    const timeOnly = value => new Intl.DateTimeFormat('ru-RU', {hour: '2-digit', minute: '2-digit'}).format(new Date(value));
+    const dateOnly = value => new Intl.DateTimeFormat('ru-RU', {day: 'numeric', month: 'short', weekday: 'short'}).format(new Date(value));
+    function timestampParts(value, offset = '+03:00') {
+      const match = String(offset).match(/^([+-])(\d{2}):(\d{2})$/);
+      const minutes = match ? (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0;
+      const adjusted = new Date(new Date(value).getTime() + minutes * 60000);
+      const pad = number => String(number).padStart(2, '0');
+      return {
+        date: `${adjusted.getUTCFullYear()}-${pad(adjusted.getUTCMonth() + 1)}-${pad(adjusted.getUTCDate())}`,
+        time: `${pad(adjusted.getUTCHours())}:${pad(adjusted.getUTCMinutes())}`,
+      };
+    }
+    function combinePlanDateTime(date, time, offset = '+03:00') {
+      return `${date}T${time}:00${offset}`;
+    }
+    function addMinutesWithOffset(value, minutes, offset = '+03:00') {
+      const shifted = new Date(new Date(value).getTime() + Number(minutes) * 60000);
+      const parts = timestampParts(shifted.toISOString(), offset);
+      return combinePlanDateTime(parts.date, parts.time, offset);
+    }
+    function calendarDayDifference(startDate, endDate) {
+      const toUtcDay = value => {
+        const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+        return Date.UTC(year, month - 1, day);
+      };
+      return Math.round((toUtcDay(endDate) - toUtcDay(startDate)) / 86400000);
+    }
+    function recommendedNightsFromJourneys(arrivalAt, returnDepartureAt) {
+      return Math.max(1, Math.min(30, calendarDayDifference(arrivalAt, returnDepartureAt)));
+    }
+    function recommendedCheckoutAt(checkInAt, currentCheckoutAt, nights) {
+      const [year, month, day] = String(checkInAt).slice(0, 10).split('-').map(Number);
+      const checkoutDay = new Date(Date.UTC(year, month - 1, day + Number(nights)));
+      const pad = number => String(number).padStart(2, '0');
+      const date = `${checkoutDay.getUTCFullYear()}-${pad(checkoutDay.getUTCMonth() + 1)}-${pad(checkoutDay.getUTCDate())}`;
+      const time = String(currentCheckoutAt).slice(11, 19) || '11:00:00';
+      const offset = String(currentCheckoutAt).match(/(Z|[+-]\d{2}:\d{2})$/)?.[1] || '+03:00';
+      return `${date}T${time}${offset}`;
+    }
+    function replaceOrCreatePlanEvent(timeline, mode, targetIndex, event) {
+      const updated = timeline.map(item => ({...item}));
+      if (mode === 'modify' && updated[targetIndex]) updated[targetIndex] = {...updated[targetIndex], ...event, kind: updated[targetIndex].kind};
+      else updated.push({...event, kind: 'activity'});
+      return updated.sort((left, right) => new Date(left.start_at) - new Date(right.start_at));
+    }
+    function canReusePlanDraft(savedSignature, currentSignature) {
+      return Boolean(savedSignature && currentSignature && savedSignature === currentSignature);
+    }
+    function planDependencySignature(flight, hotel, passengers, nights) {
+      return [flight?.id || '', hotel?.id || '', hotel?.start_at || '', hotel?.end_at || '', Number(passengers || 1), Number(nights || hotel?.nights || 1)].join('|');
+    }
+    const skeletons = (count = 2) => Array.from({length: count}, () => '<div class="skeleton-card" aria-hidden="true"></div>').join('');
+    const setLoading = (button, loading) => {
+      if (!button) return;
+      button.classList.toggle('is-loading', loading);
+      button.disabled = loading;
+      button.setAttribute('aria-busy', String(loading));
+    };
+    function toast(text, type = 'success') {
+      const item = document.createElement('div');
+      item.className = `toast ${type}`;
+      item.textContent = text;
+      document.querySelector('#toast-zone').append(item);
+      setTimeout(() => item.remove(), 3800);
+    }
+
+    function saveBookingDraft() {
+      localStorage.setItem('alfred_booking_draft', JSON.stringify(bookingDraft));
+    }
+
+    function calculateBookingTotal(draft) {
+      const passengers = Math.max(1, Number(draft.passengers || 1));
+      const originalPassengers = Math.max(1, Number(draft.original_passengers || passengers));
+      const flight = draft.flight ? Number(draft.flight.total_price_eur || 0) / originalPassengers * passengers : 0;
+      const nights = Math.max(1, Number(draft.nights || draft.hotel?.nights || 1));
+      const hotel = draft.hotel ? Number(draft.hotel.nightly_price_eur || 0) * nights : 0;
+      const timeline = draft.plan?.timeline || [];
+      const activityCount = timeline.filter(item => item.kind === 'activity').length;
+      const transferCount = timeline.filter(item => item.kind === 'transfer').length;
+      const activities = activityCount * 20 * passengers;
+      const transfers = transferCount * 15;
+      return {flight, hotel, activities, transfers, total: flight + hotel + activities + transfers, activityCount, transferCount};
+    }
+
+    function recommendedBookingParameters(draft) {
+      const passengers = Math.max(1, Number(draft.original_passengers || draft.passengers || 1));
+      let nights = Math.max(1, Number(draft.hotel?.nights || draft.nights || 1));
+      if (draft.flight?.outbound && draft.flight?.inbound) {
+        nights = recommendedNightsFromJourneys(
+          journeyLabel(draft.flight.outbound).arrivalAt,
+          journeyLabel(draft.flight.inbound).departureAt,
+        );
+      }
+      return {passengers, nights};
+    }
+
+    function applyBookingRecommendation() {
+      const recommendation = recommendedBookingParameters(bookingDraft);
+      bookingDraft.passengers = recommendation.passengers;
+      bookingDraft.nights = recommendation.nights;
+      if (bookingDraft.hotel) {
+        bookingDraft.hotel = {
+          ...bookingDraft.hotel,
+          nights: recommendation.nights,
+          end_at: recommendedCheckoutAt(bookingDraft.hotel.start_at, bookingDraft.hotel.end_at, recommendation.nights),
+          total_price_eur: Number(bookingDraft.hotel.nightly_price_eur || 0) * recommendation.nights,
+        };
+        selectedHotelOffer = bookingDraft.hotel;
+      }
+      if (bookingDraft.plan) {
+        bookingDraft.plan_stale = true;
+        clearSavedPlanDrafts();
+        document.querySelector('#plan-variants').innerHTML = '';
+      }
+      saveBookingDraft(); renderBookings();
+      toast('Рекомендованные параметры применены');
+    }
+
+    function renderBookings() {
+      const items = document.querySelector('#booking-items');
+      const warning = document.querySelector('#booking-warning');
+      const recommendation = recommendedBookingParameters(bookingDraft);
+      document.querySelector('#booking-passengers-value').textContent = Math.max(1, Number(bookingDraft.passengers || recommendation.passengers));
+      document.querySelector('#booking-nights-value').textContent = bookingDraft.hotel ? Math.max(1, Number(bookingDraft.nights || bookingDraft.hotel.nights || recommendation.nights)) : '—';
+      document.querySelector('#booking-recommendation-copy').textContent = bookingDraft.flight && bookingDraft.hotel
+        ? `${recommendation.passengers} чел. · ${recommendation.nights} ноч. Даты рейсов останутся без изменений.`
+        : 'Выберите рейс и отель — параметры рассчитаются автоматически.';
+      document.querySelector('#apply-booking-recommendation').disabled = !bookingDraft.flight || !bookingDraft.hotel;
+      const cards = [];
+      if (bookingDraft.flight) {
+        const route = journeyLabel(bookingDraft.flight.outbound);
+        cards.push(`<article class="booking-card"><h3>✈ ${escapeHtml(route.originCity)} → ${escapeHtml(route.destinationCity)}</h3><div class="offer-meta">${localTime(route.departureAt)} · ${bookingDraft.passengers || 1} чел.</div><button class="danger" type="button" data-remove-booking="flight">Убрать билет</button></article>`);
+      }
+      if (bookingDraft.hotel) {
+        cards.push(`<article class="booking-card"><h3>⌂ ${escapeHtml(bookingDraft.hotel.title)}</h3><div class="offer-meta">${bookingDraft.nights || bookingDraft.hotel.nights || 1} ноч. · ${escapeHtml(bookingDraft.hotel.meal_plan || 'Питание не указано')}</div><button class="danger" type="button" data-remove-booking="hotel">Убрать отель</button></article>`);
+      }
+      if (bookingDraft.plan) {
+        const activities = bookingDraft.plan.timeline.filter(item => item.kind === 'activity').length;
+        const activityList = bookingDraft.plan.timeline.filter(item => item.kind === 'activity').map(item => `<div class="offer-meta">• ${dateOnly(item.start_at)} · ${escapeHtml(item.title)}</div>`).join('');
+        cards.push(`<article class="booking-card"><h3>⌖ ${escapeHtml(bookingDraft.plan.title)}</h3><div class="offer-meta">${activities} активн. · ${bookingDraft.plan_stale ? 'требует перестроения' : 'план актуален'}</div>${activityList}<button class="secondary" type="button" data-edit-booking-plan>Редактировать план</button><button class="danger" type="button" data-remove-booking="plan">Убрать план</button></article>`);
+      }
+      items.innerHTML = cards.length ? cards.join('') : '<div class="empty">Выберите билет и отель, чтобы собрать поездку</div>';
+      const alerts = [];
+      if (bookingDraft.plan_stale) alerts.push('Количество ночей или состав поездки изменились — перестройте план по дням.');
+      if (bookingDraft.flight?.inbound && bookingDraft.hotel) {
+        const returnDay = journeyLabel(bookingDraft.flight.inbound).departureAt.slice(0, 10);
+        const hotelDay = String(bookingDraft.hotel.end_at || '').slice(0, 10);
+        if (returnDay && hotelDay && returnDay !== hotelDay) alerts.push(`Вылет остаётся ${dateOnly(`${returnDay}T12:00:00`)}, а проживание заканчивается ${dateOnly(`${hotelDay}T12:00:00`)}.`);
+      }
+      warning.hidden = alerts.length === 0;
+      warning.textContent = alerts.join(' ');
+      const costs = calculateBookingTotal(bookingDraft);
+      document.querySelector('#booking-cost-breakdown').innerHTML = `<div class="booking-line"><span>Билеты</span><strong>€${costs.flight.toFixed(2)}</strong></div><div class="booking-line"><span>Отель</span><strong>€${costs.hotel.toFixed(2)}</strong></div><div class="booking-line"><span>Активности · ${costs.activityCount}</span><strong>€${costs.activities.toFixed(2)}</strong></div><div class="booking-line"><span>Трансферы · ${costs.transferCount}</span><strong>€${costs.transfers.toFixed(2)}</strong></div><div class="booking-total"><span>Итого</span><span>€${costs.total.toFixed(2)}</span></div>`;
+    }
+
+    document.querySelector('#apply-booking-recommendation').addEventListener('click', applyBookingRecommendation);
+
+    document.querySelector('#booking-items').addEventListener('click', async event => {
+      const editPlanButton = event.target.closest('[data-edit-booking-plan]');
+      if (editPlanButton) {
+        await openBookingPlanEditor();
+        return;
+      }
+      const button = event.target.closest('[data-remove-booking]');
+      if (!button) return;
+      const kind = button.dataset.removeBooking;
+      if (kind === 'flight') { clearSavedPlans(); bookingDraft.flight = null; selectedFlightOffer = null; }
+      if (kind === 'hotel') { clearSavedPlans(); bookingDraft.hotel = null; selectedHotelOffer = null; }
+      if (kind === 'plan') bookingDraft.plan = null;
+      bookingDraft.plan_stale = false;
+      saveBookingDraft(); selectionSummary(); renderBookings();
+    });
+
+    function clearFormError(form, summary) {
+      form.querySelectorAll('.field-invalid').forEach(field => {
+        field.classList.remove('field-invalid');
+        field.removeAttribute('aria-invalid');
+      });
+      if (summary) summary.hidden = true;
+    }
+
+    function showFormError(form, text, fields = [], summary = null) {
+      clearFormError(form, summary);
+      fields.filter(Boolean).forEach(field => {
+        field.classList.add('field-invalid');
+        field.setAttribute('aria-invalid', 'true');
+      });
+      if (summary) {
+        summary.querySelector('.error-copy span').textContent = text;
+        summary.hidden = false;
+      }
+      fields.find(Boolean)?.focus({preventScroll: true});
+    }
+
+    function friendlyError(text) {
+      const value = String(text || '');
+      if (/unknown origin/i.test(value)) return 'Не удалось найти город отправления. Выберите город из подсказок.';
+      if (/unknown destination/i.test(value)) return 'Не удалось найти город назначения. Выберите город из подсказок.';
+      if (/origin and destination must be different/i.test(value)) return 'Города отправления и назначения должны отличаться.';
+      if (/return date must not be before departure date/i.test(value)) return 'Дата обратного рейса не может быть раньше даты вылета.';
+      if (/adults must be between/i.test(value)) return 'Укажите от 1 до 9 пассажиров.';
+      if (/failed to fetch|networkerror|load failed/i.test(value)) return 'Нет связи с сервисом. Проверьте интернет и попробуйте ещё раз.';
+      return value || 'Что-то пошло не так. Проверьте данные и повторите поиск.';
+    }
+
+    function parseRussianDate(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const compact = raw.match(/^\d{8}$/);
+      const separated = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+      const parts = compact
+        ? [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4)]
+        : separated?.slice(1);
+      if (!parts) return '';
+      const [day, month, year] = parts.map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+      return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function formatRussianDateInput(value) {
+      const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+      if (digits.length < 2) return digits;
+      if (digits.length === 2) return `${digits}.`;
+      if (digits.length < 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+      if (digits.length === 4) return `${digits.slice(0, 2)}.${digits.slice(2)}.`;
+      return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+    }
+
+    document.querySelector('#ticket-return').addEventListener('input', event => {
+      if (event.inputType?.startsWith('delete')) return;
+      const formatted = formatRussianDateInput(event.target.value);
+      if (event.target.value !== formatted) event.target.value = formatted;
+    });
+
+    const locationSuggestions = document.querySelector('#location-suggestions');
+    let activeLocationInput = null;
+    let locationItems = [];
+    let activeLocationIndex = -1;
+    let locationTimer = null;
+
+    function closeLocationSuggestions() {
+      locationSuggestions.classList.remove('open');
+      locationSuggestions.innerHTML = '';
+      activeLocationIndex = -1;
+    }
+
+    function positionLocationSuggestions(input) {
+      const rect = input.getBoundingClientRect();
+      locationSuggestions.style.left = `${rect.left}px`;
+      locationSuggestions.style.top = `${rect.bottom + 7}px`;
+      locationSuggestions.style.width = `${rect.width}px`;
+    }
+
+    function chooseLocation(index) {
+      const item = locationItems[index];
+      if (!item || !activeLocationInput) return;
+      activeLocationInput.value = item.city;
+      activeLocationInput.dataset.locationCode = item.code;
+      closeLocationSuggestions();
+      activeLocationInput.focus();
+    }
+
+    function renderLocationSuggestions(items) {
+      locationItems = items;
+      activeLocationIndex = -1;
+      if (!activeLocationInput || !items.length) { closeLocationSuggestions(); return; }
+      positionLocationSuggestions(activeLocationInput);
+      locationSuggestions.innerHTML = items.map((item, index) => `<button type="button" class="location-option" role="option" data-location-index="${index}"><span class="location-code">${escapeHtml(item.code)}</span><span class="location-copy"><span class="location-city">${escapeHtml(item.city)}</span><span class="location-airport">${escapeHtml(item.airport)}</span></span></button>`).join('');
+      locationSuggestions.classList.add('open');
+    }
+
+    document.querySelectorAll('.location-input').forEach(input => {
+      input.addEventListener('input', () => {
+        activeLocationInput = input;
+        delete input.dataset.locationCode;
+        clearTimeout(locationTimer);
+        if (!input.value.trim()) { closeLocationSuggestions(); return; }
+        locationTimer = setTimeout(async () => {
+          try {
+            const items = await api(`/locations/suggest?q=${encodeURIComponent(input.value.trim())}&limit=8`);
+            if (activeLocationInput === input) renderLocationSuggestions(items);
+          } catch (_) { closeLocationSuggestions(); }
+        }, 160);
+      });
+      input.addEventListener('focus', () => {
+        activeLocationInput = input;
+        if (locationItems.length && input.value.trim()) renderLocationSuggestions(locationItems);
+      });
+      input.addEventListener('keydown', event => {
+        if (!locationSuggestions.classList.contains('open')) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          activeLocationIndex = (activeLocationIndex + direction + locationItems.length) % locationItems.length;
+          locationSuggestions.querySelectorAll('.location-option').forEach((option, index) => option.classList.toggle('active', index === activeLocationIndex));
+        } else if (event.key === 'Enter' && activeLocationIndex >= 0) {
+          event.preventDefault(); chooseLocation(activeLocationIndex);
+        } else if (event.key === 'Escape') closeLocationSuggestions();
+      });
+    });
+    locationSuggestions.addEventListener('mousedown', event => {
+      const option = event.target.closest('[data-location-index]');
+      if (option) { event.preventDefault(); chooseLocation(Number(option.dataset.locationIndex)); }
+    });
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.location-input') && !event.target.closest('#location-suggestions')) closeLocationSuggestions();
+    });
+    window.addEventListener('resize', closeLocationSuggestions);
+    window.addEventListener('scroll', closeLocationSuggestions);
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...options});
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const validation = Array.isArray(body.detail) ? body.detail[0]?.msg : null;
+        const detail = typeof body.detail === 'string' ? body.detail : body.detail?.message || validation;
+        throw new Error(detail || `Ошибка ${response.status}`);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    const travelApi = (path, options = {}) => api(path, {
+      ...options,
+      headers: {'Content-Type': 'application/json', 'X-User-ID': travelUserId}
+    });
+
+    async function ensureTravelUser() {
+      if (travelUserId) return travelUserId;
+      const user = await api('/users', {method: 'POST', body: JSON.stringify({display_name: 'Гость'})});
+      travelUserId = user.id;
+      localStorage.setItem('alfred_user_id', travelUserId);
+      return travelUserId;
+    }
+
+    async function refreshTrip() {
+      if (!travelUserId || !travelTripId) return;
+      const timeline = document.querySelector('#trip-timeline');
+      timeline.innerHTML = skeletons(2);
+      const [trip, items, conflicts] = await Promise.all([
+        travelApi(`/trips/${travelTripId}`), travelApi(`/trips/${travelTripId}/itinerary`), travelApi(`/trips/${travelTripId}/conflicts`)
+      ]);
+      travelTripVersion = trip.version;
+      localStorage.setItem('alfred_trip_version', String(trip.version));
+      timeline.innerHTML = items.length ? items.map(item => `<div class="flight"><strong>${escapeHtml(item.title)}</strong><div class="flight-time">${escapeHtml(item.item_type)} · ${localTime(item.start_at)} — ${localTime(item.end_at)} · ${escapeHtml(item.state)}</div></div>`).join('') : '<div class="empty">План пока пуст</div>';
+      document.querySelector('#trip-message').textContent = `Версия плана: ${trip.version}${conflicts.length ? ` · конфликтов: ${conflicts.length}` : ' · конфликтов нет'}`;
+    }
+
+    document.querySelector('#trip-setup-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector('button[type=submit]');
+      setLoading(button, true);
+      try {
+        const user = await api('/users', {method: 'POST', body: JSON.stringify({display_name: document.querySelector('#traveler-name').value})});
+        travelUserId = user.id;
+        const trip = await travelApi('/trips', {method: 'POST', body: JSON.stringify({
+          name: document.querySelector('#trip-name').value,
+          destinations: document.querySelector('#trip-destinations').value.split(',').map(x => x.trim()).filter(Boolean),
+          start_date: document.querySelector('#trip-start').value, end_date: document.querySelector('#trip-end').value,
+          timezone: document.querySelector('#trip-timezone').value
+        })});
+        travelTripId = trip.id; travelTripVersion = trip.version;
+        localStorage.setItem('alfred_user_id', travelUserId); localStorage.setItem('alfred_trip_id', travelTripId);
+        await refreshTrip();
+        toast('Поездка создана и сохранена');
+      } catch (error) { document.querySelector('#trip-message').textContent = error.message; toast(error.message, 'error'); }
+      finally { setLoading(button, false); }
+    });
+
+    document.querySelector('#refresh-trip').addEventListener('click', () => refreshTrip().catch(error => document.querySelector('#trip-message').textContent = error.message));
+    document.querySelector('#load-inbox').addEventListener('click', async () => {
+      if (!travelUserId) return;
+      document.querySelector('#trip-timeline').innerHTML = skeletons(2);
+      const notes = await travelApi('/notifications/inbox');
+      document.querySelector('#trip-timeline').innerHTML = notes.length ? notes.map(item => `<div class="note">${escapeHtml(item.message)}</div>`).join('') : '<div class="empty">Новых уведомлений нет</div>';
+    });
+
+    document.querySelector('#inventory-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!travelUserId || !travelTripId) { document.querySelector('#trip-message').textContent = 'Сначала создайте поездку'; return; }
+      const button = event.currentTarget.querySelector('button[type=submit]');
+      setLoading(button, true); document.querySelector('#inventory-results').innerHTML = skeletons(2);
+      try {
+        const start = new Date(document.querySelector('#inventory-start').value).toISOString();
+        const end = new Date(document.querySelector('#inventory-end').value).toISOString();
+        const offers = await travelApi('/inventory/search', {method:'POST', body:JSON.stringify({kind:document.querySelector('#inventory-kind').value,destination:document.querySelector('#inventory-destination').value,start_at:start,end_at:end,timezone:document.querySelector('#trip-timezone').value})});
+        document.querySelector('#inventory-results').innerHTML = offers.map(item => `<div class="offer"><strong>${escapeHtml(item.title)}</strong><div class="offer-meta">€${item.price_eur} · ${escapeHtml(item.recommendation_reason)}</div><div class="tradeoffs"><ul class="pros">${item.advantages.map(x=>`<li>+ ${escapeHtml(x)}</li>`).join('')}</ul><ul class="cons">${item.disadvantages.map(x=>`<li>− ${escapeHtml(x)}</li>`).join('') || '<li>− нет</li>'}</ul></div><button class="primary" data-book-offer="${escapeHtml(item.id)}">Забронировать демо</button></div>`).join('');
+      } catch (error) { document.querySelector('#inventory-results').innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`; toast(error.message, 'error'); }
+      finally { setLoading(button, false); }
+    });
+
+    document.querySelector('#inventory-results').addEventListener('click', async event => {
+      const button = event.target.closest('[data-book-offer]'); if (!button) return;
+      setLoading(button, true);
+      try {
+        const booking = await travelApi('/bookings', {method:'POST',body:JSON.stringify({trip_id:travelTripId,offer_id:button.dataset.bookOffer,payment_token:'tok_demo_safe'})});
+        await travelApi(`/bookings/${booking.id}/confirm`, {method:'POST',body:JSON.stringify({expected_version:travelTripVersion})});
+        await refreshTrip(); toast('Бронирование добавлено в план');
+      } catch (error) { toast(error.message, 'error'); }
+      finally { setLoading(button, false); }
+    });
+
+    async function refresh() {
+      const [flights, notifications] = await Promise.all([api('/flights'), api('/notifications')]);
+      renderFlights(flights);
+      renderNotifications(notifications);
+    }
+
+    function renderFlights(flights) {
+      if (!flights.length) {
+        flightsList.innerHTML = '<div class="empty">Пока нет отслеживаемых рейсов</div>';
+        return;
+      }
+      flightsList.innerHTML = flights.map(flight => `
+        <div class="flight">
+          <div class="flight-top">
+            <div>
+              <div class="flight-number">${escapeHtml(flight.flight_number)}</div>
+              <div class="flight-time">${localTime(flight.departure_at)}</div>
+            </div>
+            <span class="badge ${flight.state}">${stateNames[flight.state] || flight.state}${flight.delay_minutes ? ` · ${flight.delay_minutes} мин` : ''}</span>
+          </div>
+          <div class="flight-actions">
+            <button class="secondary" data-action="check" data-id="${flight.id}">Проверить статус</button>
+            <button class="warning" data-action="delay" data-id="${flight.id}">Имитировать задержку</button>
+            <button class="danger" data-action="cancel" data-id="${flight.id}">Имитировать отмену</button>
+            ${['delayed', 'cancelled'].includes(flight.state) && flight.origin && flight.destination ? `<button class="primary" data-action="alternatives" data-id="${flight.id}">Найти альтернативы</button>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    function renderNotifications(notifications) {
+      notificationsList.innerHTML = notifications.length
+        ? notifications.slice().reverse().map(item => `<div class="note">${escapeHtml(item.message)}</div>`).join('')
+        : '<div class="empty">Критических событий пока нет</div>';
+    }
+
+    function durationLabel(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const rest = minutes % 60;
+      return `${hours} ч ${rest ? `${rest} мин` : ''}`.trim();
+    }
+
+    function journeyLabel(journey) {
+      const first = journey.segments[0];
+      const last = journey.segments[journey.segments.length - 1];
+      return {
+        origin: first.origin,
+        destination: last.destination,
+        originCity: first.origin_city,
+        destinationCity: last.destination_city,
+        originAirport: first.origin_airport,
+        destinationAirport: last.destination_airport,
+        departureAt: first.departure_at,
+        arrivalAt: last.arrival_at,
+        duration: durationLabel(journey.duration_minutes),
+        stops: journey.stops ? `${journey.stops} перес.` : 'без пересадок',
+        period: journey.departure_period,
+        flight: journey.segments.map(item => `${item.airline} ${item.flight_number}`).join(', ')
+      };
+    }
+
+    function routeMarkup(route) {
+      const periodText = route.period === 'night' ? '☾ Ночной рейс' : '☀ Дневной рейс';
+      return `<div class="ticket-head"><span class="carrier">${escapeHtml(route.flight)}</span><span class="period-badge ${route.period}">${periodText}</span></div>
+        <div class="ticket-route">
+          <div class="route-point"><div class="route-time">${timeOnly(route.departureAt)}</div><div class="route-date">${dateOnly(route.departureAt)}</div><div class="route-city">${escapeHtml(route.originCity)} · ${escapeHtml(route.origin)}</div><div class="route-airport">${escapeHtml(route.originAirport)}</div></div>
+          <div class="route-line"><span>${escapeHtml(route.duration)}</span><span>${escapeHtml(route.stops)}</span></div>
+          <div class="route-point"><div class="route-time">${timeOnly(route.arrivalAt)}</div><div class="route-date">${dateOnly(route.arrivalAt)}</div><div class="route-city">${escapeHtml(route.destinationCity)} · ${escapeHtml(route.destination)}</div><div class="route-airport">${escapeHtml(route.destinationAirport)}</div></div>
+        </div>`;
+    }
+
+    function renderOffers(offers) {
+      currentOffers = offers;
+      currentOfferIds = offers.map(item => item.id);
+      if (!offers.length) {
+        ticketOffersList.innerHTML = '<div class="empty">Подходящих вариантов не найдено</div>';
+        moreTicketOffers.hidden = true;
+        return;
+      }
+      ticketOffersList.innerHTML = offers.slice(0, visibleTicketCount).map(item => {
+        const outbound = journeyLabel(item.outbound);
+        const inbound = item.inbound ? journeyLabel(item.inbound) : null;
+        const pros = item.advantages.length ? item.advantages : ['Доступен для сравнения'];
+        const cons = item.disadvantages.length ? item.disadvantages : ['Существенных минусов не найдено'];
+        return `<article class="offer ${selectedFlightOffer?.id === item.id ? 'selected' : ''}" data-offer-id="${escapeHtml(item.id)}">
+          ${routeMarkup(outbound)}
+          ${inbound ? `<div class="return-route"><strong>Обратный рейс:</strong> ${timeOnly(inbound.departureAt)}, ${dateOnly(inbound.departureAt)} · ${escapeHtml(inbound.originCity)} → ${escapeHtml(inbound.destinationCity)} · ${escapeHtml(inbound.duration)}</div>` : ''}
+          <div class="ticket-bottom">
+            <div class="offer-meta"><span class="score">Рейтинг: ${Number(item.recommendation_score)} / 100</span><br><br>Ручная кладь: ${item.cabin_baggage_kg} кг · Багаж: ${item.checked_baggage_kg ? `${item.checked_baggage_kg} кг включён` : 'не включён'}${item.transit_countries.length ? `<br>Транзит: ${item.transit_countries.map(escapeHtml).join(', ')}` : ''}</div>
+            <div>
+              <div class="price">€${Number(item.total_price_eur).toFixed(2)}<small>за всех пассажиров · демо</small></div>
+              <button class="primary" data-select-offer="${escapeHtml(item.id)}">Выбрать вариант</button>
+              ${item.purchase_url ? `<a class="buy-link" href="${escapeHtml(item.purchase_url)}" target="_blank" rel="noopener noreferrer">Купить на Aviasales</a>` : ''}
+            </div>
+          </div>
+          <div class="tradeoffs">
+            <ul class="pros">${pros.map(text => `<li>+ ${escapeHtml(text)}</li>`).join('')}</ul>
+            <ul class="cons">${cons.map(text => `<li>− ${escapeHtml(text)}</li>`).join('')}</ul>
+          </div>
+        </article>`;
+      }).join('');
+      const remaining = Math.max(0, offers.length - visibleTicketCount);
+      moreTicketOffers.hidden = remaining === 0;
+      moreTicketOffers.textContent = remaining ? `Показать ещё рейсы · осталось ${remaining}` : 'Все рейсы показаны';
+    }
+
+    moreTicketOffers.addEventListener('click', () => {
+      visibleTicketCount += 5;
+      renderOffers(currentOffers);
+    });
+
+    function selectedHotelFilters() {
+      const requiredFeatures = [...document.querySelectorAll('[data-hotel-feature]:checked')].map(input => input.dataset.hotelFeature);
+      const mealPlan = document.querySelector('#hotel-meal-plan').value || null;
+      return {required_features: requiredFeatures, meal_plan: mealPlan};
+    }
+
+    function resetHotelFilters() {
+      document.querySelectorAll('[data-hotel-feature]').forEach(input => { input.checked = false; });
+      document.querySelector('#hotel-meal-plan').value = '';
+      document.querySelector('#reset-hotel-filters').hidden = true;
+      document.querySelector('#hotel-search-form').requestSubmit();
+    }
+
+    function renderHotelOffers() {
+      const results = document.querySelector('#hotel-search-results');
+      const resetButton = document.querySelector('#reset-hotel-filters');
+      if (!currentHotelOffers.length) {
+        const filters = selectedHotelFilters();
+        const selectedCount = filters.required_features.length + (filters.meal_plan ? 1 : 0);
+        results.innerHTML = `<div class="empty">${selectedCount ? `Нет отелей, которые одновременно соответствуют всем выбранным условиям (${selectedCount}). Сбросьте фильтры или уберите одно из условий.` : 'Подходящих отелей не найдено для этих дат.'}</div>`;
+        resetButton.hidden = selectedCount === 0;
+        moreHotelOffers.hidden = true;
+        return;
+      }
+      resetButton.hidden = true;
+      results.innerHTML = currentHotelOffers.slice(0, visibleHotelCount).map(hotel => {
+        const isSelected = selectedHotelOffer?.id === hotel.id;
+        const isAutomatic = autoSelectedHotelId === hotel.id;
+        const stars = '★'.repeat(Number(hotel.stars || 0));
+        const mealIncluded = hotel.meal_plan !== 'Без питания';
+        return `<article class="hotel-card ${isSelected ? 'selected' : ''}" data-hotel-id="${escapeHtml(hotel.id)}">
+          <div class="hotel-card-head"><div><strong>${escapeHtml(hotel.title)} ${isAutomatic ? '★' : ''}</strong><div class="hotel-stars">${stars} · ${hotel.stars} звезды</div></div><div class="hotel-rating">${Number(hotel.rating).toFixed(1)}<small>${hotel.review_count} отзывов</small></div></div>
+          <div class="offer-meta">${isAutomatic ? 'Выбран автоматически · ' : ''}${hotel.advantages.map(escapeHtml).join(' · ')}</div>
+          <div class="hotel-metrics"><div class="hotel-metric">🛏 ${escapeHtml(hotel.room_type)}</div><div class="hotel-metric">🍽 ${escapeHtml(hotel.meal_plan)}</div><div class="hotel-metric">📍 ${Number(hotel.distance_to_center_km).toFixed(1)} км до центра</div><div class="hotel-metric">👥 ${hotel.guests} гост.</div></div>
+          <div class="hotel-included"><strong>В стоимость входит</strong>✓ Проживание: ${escapeHtml(hotel.room_type)}<br>${mealIncluded ? `✓ ${escapeHtml(hotel.meal_plan)}` : '− Питание не включено'}</div>
+          <div class="hotel-amenities">${hotel.amenities.map(item => `<span class="hotel-amenity">${escapeHtml(item)}</span>`).join('')}</div>
+          <div class="hotel-policy">${hotel.free_cancellation ? '✓ Бесплатная отмена' : 'Отмена платная'} · ${hotel.pay_at_property ? 'Оплата в отеле' : 'Оплата онлайн'}</div>
+          <div class="hotel-price">€${Number(hotel.total_price_eur).toFixed(2)}</div><div class="offer-meta">€${Number(hotel.nightly_price_eur).toFixed(2)} за ночь · ${currentHotelNights} ноч.</div>
+          <div class="hotel-actions"><button class="${isSelected ? 'secondary' : 'primary'}" type="button" data-select-hotel="${escapeHtml(hotel.id)}">${isSelected ? 'Выбран' : 'Выбрать отель'}</button><a class="buy-link hotel-book-link" href="/hotels/${encodeURIComponent(hotel.detail_id)}" target="_self">Открыть отель</a></div>
+        </article>`;
+      }).join('');
+      const remaining = Math.max(0, currentHotelOffers.length - visibleHotelCount);
+      moreHotelOffers.hidden = remaining === 0;
+      moreHotelOffers.textContent = remaining ? `Показать ещё отели · осталось ${remaining}` : 'Все отели показаны';
+    }
+
+    moreHotelOffers.addEventListener('click', () => {
+      visibleHotelCount += 5;
+      renderHotelOffers();
+    });
+    document.querySelector('#reset-hotel-filters').addEventListener('click', resetHotelFilters);
+
+    document.querySelector('#hotel-search-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector('button[type=submit]');
+      const destination = document.querySelector('#hotel-destination');
+      const results = document.querySelector('#hotel-search-results');
+      const message = document.querySelector('#hotel-search-message');
+      setLoading(button, true); results.innerHTML = skeletons(3); message.textContent = 'Ищем подходящие отели…';
+      try {
+        const response = await api('/hotel-search', {method: 'POST', body: JSON.stringify({
+          destination: destination.dataset.locationCode || destination.value,
+          check_in: document.querySelector('#hotel-check-in').value,
+          nights: Number(document.querySelector('#hotel-nights').value),
+          guests: Number(document.querySelector('#hotel-guests').value),
+          sort_by: document.querySelector('#hotel-sort').value,
+          ...selectedHotelFilters()
+        })});
+        message.textContent = `${response.destination_city}: ${response.nights} ноч. · выезд ${dateOnly(response.check_out + 'T12:00:00')}`;
+        selectedHotelOffer = null;
+        autoSelectedHotelId = null;
+        visibleHotelCount = 5;
+        currentHotelNights = response.nights;
+        currentHotelOffers = response.offers.map(item => ({...item, destination_city: response.destination_city}));
+        document.querySelector('#plan-variants').innerHTML = '';
+        selectionSummary();
+        renderHotelOffers();
+        toast(`Нашли отели: ${response.offers.length}`);
+      } catch (error) {
+        results.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        message.textContent = error.message; toast(error.message, 'error');
+      } finally { setLoading(button, false); }
+    });
+
+    function selectionSummary() {
+      const flightBox = document.querySelector('#selected-flight-summary');
+      const hotelBox = document.querySelector('#selected-hotel-summary');
+      if (selectedFlightOffer) {
+        const route = journeyLabel(selectedFlightOffer.outbound);
+        flightBox.classList.add('ready');
+        flightBox.innerHTML = `<div class="selection-label">✓ Рейс выбран</div><div class="selection-value">${escapeHtml(route.originCity)} → ${escapeHtml(route.destinationCity)}</div><div class="offer-meta">${timeOnly(route.departureAt)}–${timeOnly(route.arrivalAt)} · €${Number(selectedFlightOffer.total_price_eur).toFixed(2)}</div>`;
+      } else { flightBox.classList.remove('ready'); flightBox.innerHTML = '<div class="selection-label">1. Рейс</div><div class="selection-value">Выберите билет выше</div>'; }
+      if (selectedHotelOffer) {
+        hotelBox.classList.add('ready');
+        hotelBox.innerHTML = `<div class="selection-label">✓ Отель выбран</div><div class="selection-value">${escapeHtml(selectedHotelOffer.title)}</div><div class="offer-meta">€${Number(selectedHotelOffer.total_price_eur).toFixed(2)} за весь период</div>`;
+      } else { hotelBox.classList.remove('ready'); hotelBox.innerHTML = '<div class="selection-label">2. Отель</div><div class="selection-value">Выберите отель выше</div>'; }
+      document.querySelector('#plan-readiness').textContent = selectedFlightOffer && selectedHotelOffer ? 'Готово — сравниваем варианты поездки' : `Осталось выбрать: ${selectedFlightOffer ? 'отель' : selectedHotelOffer ? 'рейс' : 'рейс и отель'}`;
+    }
+
+    async function buildPreliminaryPlans() {
+      selectionSummary();
+      if (!selectedFlightOffer || !selectedHotelOffer) return;
+      const route = journeyLabel(selectedFlightOffer.outbound);
+      const dependencySignature = planDependencySignature(
+        selectedFlightOffer, selectedHotelOffer,
+        bookingDraft.passengers, bookingDraft.nights || selectedHotelOffer.nights,
+      );
+      const container = document.querySelector('#plan-variants');
+      container.innerHTML = skeletons(4);
+      try {
+        const result = await api('/preliminary-plans', {method: 'POST', body: JSON.stringify({
+          flight: {id: selectedFlightOffer.id, destination_city: route.destinationCity, arrival_at: route.arrivalAt, price_eur: Number(selectedFlightOffer.total_price_eur), baggage_kg: selectedFlightOffer.checked_baggage_kg},
+          hotel: {id: selectedHotelOffer.id, title: selectedHotelOffer.title, destination_city: selectedHotelOffer.destination_city, check_in_at: selectedHotelOffer.start_at, check_out_at: selectedHotelOffer.end_at, total_price_eur: selectedHotelOffer.total_price_eur}
+        })});
+        container.innerHTML = result.variants.map(plan => {
+          const saved = localStorage.getItem(`alfred_plan_draft_${plan.strategy}`);
+          const savedSignature = localStorage.getItem(`alfred_plan_draft_${plan.strategy}_signature`);
+          let timeline = plan.timeline;
+          try { if (saved && canReusePlanDraft(savedSignature, dependencySignature)) timeline = JSON.parse(saved); } catch (_) { /* use fresh plan */ }
+          return `<article class="plan-card ${plan.recommended ? 'recommended' : ''}" data-plan="${escapeHtml(plan.strategy)}" data-plan-signature="${escapeHtml(dependencySignature)}"><h3>${escapeHtml(plan.title)} ${plan.recommended ? '★' : ''}</h3><div class="plan-total">≈ €${Number(plan.estimated_total_eur).toFixed(2)}</div><div class="offer-meta">+ ${escapeHtml(plan.advantages[0])}<br>− ${escapeHtml(plan.tradeoffs[0])}</div><div class="plan-timeline">${renderPlanDays(timeline)}</div><div class="plan-card-actions"><button class="${plan.recommended ? 'primary' : 'secondary'}" type="button" data-apply-plan="${escapeHtml(plan.strategy)}">${plan.recommended ? 'Выбрать лучший вариант' : 'Выбрать этот план'}</button><button class="secondary" type="button" data-edit-plan="${escapeHtml(plan.strategy)}">Редактировать поездку</button></div></article>`;
+        }).join('');
+        showSection('plan');
+      } catch (error) { container.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`; }
+    }
+
+    function planOffsetFromTimeline(timeline) {
+      for (const event of timeline) {
+        const match = String(event.start_at || '').match(/([+-]\d{2}:\d{2})$/);
+        if (match) return match[1];
+      }
+      return String(selectedHotelOffer?.start_at || bookingDraft.hotel?.start_at || '').match(/([+-]\d{2}:\d{2})$/)?.[1] || '+03:00';
+    }
+
+    function planEventMarkup(event, index, offset = '+03:00') {
+      const startAt = event.start_at || '';
+      const endAt = event.end_at || startAt;
+      const timeLabel = startAt ? `${timestampParts(startAt, offset).time}–${timestampParts(endAt, offset).time}` : 'Время на выбор';
+      return `<div class="plan-event" data-event-index="${index}" data-start-at="${escapeHtml(startAt)}" data-end-at="${escapeHtml(endAt)}" data-kind="${escapeHtml(event.kind || 'activity')}"><strong data-edit-field="title" contenteditable="false">${escapeHtml(event.title)}</strong><span>${timeLabel} · <span data-edit-field="note" contenteditable="false">${escapeHtml(event.note || 'Можно изменить описание')}</span></span><button class="plan-event-remove" type="button" data-remove-event="${index}" aria-label="Удалить активность" hidden>×</button></div>`;
+    }
+
+    function renderPlanDays(timeline) {
+      const groups = new Map();
+      const offset = planOffsetFromTimeline(timeline);
+      timeline.forEach((event, index) => {
+        const dayKey = event.start_at ? timestampParts(event.start_at, offset).date : `day-${index}`;
+        if (!groups.has(dayKey)) groups.set(dayKey, []);
+        groups.get(dayKey).push({event, index});
+      });
+      return [...groups.entries()].map(([dayKey, events], dayIndex) => {
+        const label = /^\d{4}-\d{2}-\d{2}$/.test(dayKey) ? dateOnly(`${dayKey}T12:00:00`) : 'Дата на выбор';
+        return `<section class="plan-day" data-plan-day="${escapeHtml(dayKey)}"><h4 class="plan-day-title">День ${dayIndex + 1} · ${label}</h4><div class="plan-day-events">${events.map(({event, index}) => planEventMarkup(event, index, offset)).join('')}</div><button class="secondary" type="button" data-add-activity-day="${escapeHtml(dayKey)}" hidden>+ Добавить активность в этот день</button></section>`;
+      }).join('');
+    }
+
+    function timelineFromPlanCard(card) {
+      return [...card.querySelectorAll('.plan-event')].map(item => ({
+        kind: item.dataset.kind || 'activity',
+        title: item.querySelector('[data-edit-field="title"]').textContent.trim() || 'Активность',
+        note: item.querySelector('[data-edit-field="note"]').textContent.trim(),
+        start_at: item.dataset.startAt,
+        end_at: item.dataset.endAt
+      }));
+    }
+
+    function saveEditedPlan(card) {
+      const timeline = timelineFromPlanCard(card);
+      localStorage.setItem(`alfred_plan_draft_${card.dataset.plan}`, JSON.stringify(timeline));
+      localStorage.setItem(`alfred_plan_draft_${card.dataset.plan}_signature`, card.dataset.planSignature || '');
+      if (bookingDraft.plan?.strategy === card.dataset.plan) {
+        bookingDraft.plan.timeline = timeline;
+        saveBookingDraft(); renderBookings();
+      }
+    }
+
+    function clearSavedPlanDrafts() {
+      ['optimal', 'comfortable', 'intensive', 'budget'].forEach(strategy => {
+        localStorage.removeItem(`alfred_plan_draft_${strategy}`);
+        localStorage.removeItem(`alfred_plan_draft_${strategy}_signature`);
+      });
+    }
+
+    function clearSavedPlans() {
+      clearSavedPlanDrafts();
+      bookingDraft.plan = null;
+      bookingDraft.plan_stale = false;
+    }
+
+    function fillPlanChangeFields(card, eventIndex) {
+      const timeline = timelineFromPlanCard(card);
+      const item = timeline[Number(eventIndex)] || timeline.find(event => event.kind === 'activity');
+      if (!item) return;
+      const parts = timestampParts(item.start_at, planOffsetFromTimeline(timeline));
+      document.querySelector('#plan-change-name').value = item.title || '';
+      document.querySelector('#plan-change-date').value = parts.date;
+      document.querySelector('#plan-change-time').value = parts.time;
+      document.querySelector('#plan-change-note').value = item.note || '';
+      const minutes = Math.max(30, Math.round((new Date(item.end_at) - new Date(item.start_at)) / 60000) || 90);
+      document.querySelector('#plan-change-duration').value = ['60', '90', '120', '180'].includes(String(minutes)) ? String(minutes) : '90';
+    }
+
+    function openPlanChangeEditor(card) {
+      planEditorCard = card;
+      const timeline = timelineFromPlanCard(card);
+      const target = document.querySelector('#plan-change-target');
+      const activities = timeline.map((item, index) => ({item, index})).filter(({item}) => item.kind === 'activity');
+      target.innerHTML = activities.map(({item, index}) => `<option value="${index}">${escapeHtml(dateOnly(item.start_at))} · ${escapeHtml(item.title)}</option>`).join('');
+      const hasEvents = activities.length > 0;
+      document.querySelector('#plan-change-mode').value = hasEvents ? 'modify' : 'create';
+      document.querySelector('#plan-change-target-wrap').hidden = !hasEvents;
+      if (hasEvents) fillPlanChangeFields(card, target.value);
+      document.querySelector('#plan-change-dialog').hidden = false;
+    }
+
+    function applyPlanChange() {
+      if (!planEditorCard) return;
+      const mode = document.querySelector('#plan-change-mode').value;
+      const date = document.querySelector('#plan-change-date').value;
+      const time = document.querySelector('#plan-change-time').value;
+      const timeline = timelineFromPlanCard(planEditorCard);
+      const offset = planOffsetFromTimeline(timeline);
+      const startAt = combinePlanDateTime(date, time, offset);
+      const duration = Number(document.querySelector('#plan-change-duration').value || 90);
+      const event = {
+        kind: 'activity',
+        title: document.querySelector('#plan-change-name').value.trim() || 'Новая активность',
+        note: document.querySelector('#plan-change-note').value.trim() || 'Добавлено пользователем',
+        start_at: startAt,
+        end_at: addMinutesWithOffset(startAt, duration, offset),
+      };
+      const updated = replaceOrCreatePlanEvent(timeline, mode, Number(document.querySelector('#plan-change-target').value), event);
+      planEditorCard.querySelector('.plan-timeline').innerHTML = renderPlanDays(updated);
+      saveEditedPlan(planEditorCard);
+      document.querySelector('#plan-change-dialog').hidden = true;
+      toast(mode === 'modify' ? 'Событие обновлено' : 'Новое событие добавлено');
+    }
+
+    async function openBookingPlanEditor() {
+      if (!bookingDraft.plan || !bookingDraft.flight || !bookingDraft.hotel) {
+        toast('Сначала выберите рейс, отель и план', 'error');
+        return;
+      }
+      selectedFlightOffer = bookingDraft.flight;
+      selectedHotelOffer = bookingDraft.hotel;
+      const signature = planDependencySignature(selectedFlightOffer, selectedHotelOffer, bookingDraft.passengers, bookingDraft.nights);
+      if (!bookingDraft.plan_stale) {
+        localStorage.setItem(`alfred_plan_draft_${bookingDraft.plan.strategy}`, JSON.stringify(bookingDraft.plan.timeline));
+        localStorage.setItem(`alfred_plan_draft_${bookingDraft.plan.strategy}_signature`, signature);
+      }
+      await buildPreliminaryPlans();
+      const card = [...document.querySelectorAll('.plan-card')].find(item => item.dataset.plan === bookingDraft.plan.strategy);
+      if (!card) return;
+      card.classList.add('applied');
+      openPlanChangeEditor(card);
+    }
+
+    function addActivityToDay(card, day) {
+      const dayEvents = [...day.querySelectorAll('.plan-event')];
+      const previous = dayEvents.at(-1);
+      const startAt = previous?.dataset.endAt || `${day.dataset.planDay}T10:00:00+03:00`;
+      const offset = planOffsetFromTimeline(timelineFromPlanCard(card));
+      const endAt = addMinutesWithOffset(startAt, 90, offset);
+      const index = `new-${Date.now()}`;
+      day.querySelector('.plan-day-events').insertAdjacentHTML('beforeend', planEventMarkup({kind: 'activity', title: 'Новая активность', note: 'Нажмите, чтобы изменить', start_at: startAt, end_at: endAt}, index, offset));
+      const added = day.querySelector('.plan-event:last-child');
+      added.querySelectorAll('[data-edit-field]').forEach(field => field.contentEditable = 'true');
+      added.querySelector('[data-remove-event]').hidden = false;
+      added.querySelector('[data-edit-field="title"]').focus();
+      saveEditedPlan(card);
+    }
+
+    function prepareHotelContinuation() {
+      if (!selectedFlightOffer) return;
+      const route = journeyLabel(selectedFlightOffer.outbound);
+      const inbound = selectedFlightOffer.inbound ? journeyLabel(selectedFlightOffer.inbound) : null;
+      const nights = inbound
+        ? recommendedNightsFromJourneys(route.arrivalAt, inbound.departureAt)
+        : 3;
+      const checkIn = route.arrivalAt.slice(0, 10);
+      const hotelInput = document.querySelector('#hotel-destination');
+      hotelInput.value = route.destinationCity;
+      hotelInput.dataset.locationCode = route.destination;
+      document.querySelector('#hotel-check-in').value = checkIn;
+      document.querySelector('#hotel-nights').value = nights;
+      const continuation = document.querySelector('#hotel-continuation');
+      continuation.querySelector('span').textContent = `${route.destinationCity} · заезд ${dateOnly(`${checkIn}T12:00:00`)} · ${nights} ноч.`;
+      continuation.hidden = false;
+      return {route, nights, checkIn};
+    }
+
+    function showHotelContinuationPopup(prepared = prepareHotelContinuation()) {
+      if (!prepared) return;
+      document.querySelector('#hotel-next-step-copy').textContent = `${prepared.route.destinationCity} · заезд ${dateOnly(`${prepared.checkIn}T12:00:00`)} · ${prepared.nights} ноч. Город уже подставлен.`;
+      document.querySelector('#hotel-next-step').hidden = false;
+    }
+
+    async function loadHotelsForSelectedFlight() {
+      const prepared = prepareHotelContinuation();
+      if (!prepared) return;
+      const {route, nights, checkIn} = prepared;
+      const results = document.querySelector('#hotel-search-results');
+      showSection('hotels');
+      results.innerHTML = skeletons(3);
+      document.querySelector('#hotel-search-message').textContent = `Подбираем отель в городе ${route.destinationCity}…`;
+      try {
+        const response = await api('/hotel-search', {method: 'POST', body: JSON.stringify({
+          destination: route.destination, check_in: checkIn, nights,
+          guests: Number(document.querySelector('#hotel-guests').value), sort_by: 'recommended',
+          ...selectedHotelFilters()
+        })});
+        currentHotelOffers = response.offers.map(item => ({...item, destination_city: response.destination_city}));
+        selectedHotelOffer = null;
+        autoSelectedHotelId = null;
+        visibleHotelCount = 5;
+        currentHotelNights = response.nights;
+        document.querySelector('#hotel-search-message').textContent = `Нашли ${response.offers.length} отелей · ${response.destination_city}, ${response.nights} ноч. Выберите подходящий вариант.`;
+        selectionSummary();
+        renderHotelOffers();
+        toast('Отели найдены — выберите подходящий');
+      } catch (error) {
+        selectedHotelOffer = null;
+        selectionSummary();
+        results.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    document.querySelector('#continue-hotel-planning').addEventListener('click', event => {
+      const button = event.currentTarget;
+      document.querySelector('#hotel-next-step').hidden = true;
+      setLoading(button, true);
+      loadHotelsForSelectedFlight().finally(() => setLoading(button, false));
+    });
+    document.querySelector('#hotel-next-step-action').addEventListener('click', event => {
+      const button = event.currentTarget;
+      document.querySelector('#hotel-next-step').hidden = true;
+      setLoading(button, true);
+      loadHotelsForSelectedFlight().finally(() => setLoading(button, false));
+    });
+    document.querySelector('#hotel-next-step-dismiss').addEventListener('click', () => {
+      document.querySelector('#hotel-next-step').hidden = true;
+    });
+
+    document.querySelector('#hotel-search-results').addEventListener('click', event => {
+      const button = event.target.closest('[data-select-hotel]');
+      if (!button) return;
+      selectedHotelOffer = currentHotelOffers.find(item => item.id === button.dataset.selectHotel);
+      autoSelectedHotelId = null;
+      clearSavedPlans();
+      bookingDraft.hotel = selectedHotelOffer;
+      bookingDraft.nights = currentHotelNights || selectedHotelOffer.nights || 1;
+      saveBookingDraft(); renderBookings();
+      renderHotelOffers();
+      toast('Отель добавлен в предварительный план');
+      buildPreliminaryPlans();
+    });
+
+    document.querySelector('#plan-variants').addEventListener('click', event => {
+      const applyButton = event.target.closest('[data-apply-plan]');
+      if (applyButton) {
+        const card = applyButton.closest('.plan-card');
+        const currentSignature = planDependencySignature(selectedFlightOffer, selectedHotelOffer, bookingDraft.passengers, bookingDraft.nights);
+        if (!canReusePlanDraft(card.dataset.planSignature, currentSignature)) {
+          bookingDraft.plan_stale = true;
+          saveBookingDraft(); renderBookings();
+          toast('Параметры поездки изменились — план перестраивается', 'error');
+          buildPreliminaryPlans();
+          return;
+        }
+        document.querySelectorAll('.plan-card').forEach(item => item.classList.toggle('applied', item.dataset.plan === applyButton.dataset.applyPlan));
+        bookingDraft.plan = {strategy: card.dataset.plan, title: card.querySelector('h3').textContent.replace('★', '').trim(), timeline: timelineFromPlanCard(card)};
+        bookingDraft.plan_stale = false;
+        saveBookingDraft(); renderBookings();
+        document.querySelector('#plan-readiness').textContent = 'Предварительный план выбран — его можно изменить в любой момент';
+        toast('Предварительный план применён');
+        return;
+      }
+      const editButton = event.target.closest('[data-edit-plan]');
+      if (editButton) {
+        const card = editButton.closest('.plan-card');
+        openPlanChangeEditor(card);
+        return;
+      }
+      const removeButton = event.target.closest('[data-remove-event]');
+      if (removeButton) {
+        const card = removeButton.closest('.plan-card');
+        const day = removeButton.closest('.plan-day');
+        removeButton.closest('.plan-event').remove();
+        if (!day.querySelector('.plan-event')) day.remove();
+        saveEditedPlan(card);
+        return;
+      }
+      const addButton = event.target.closest('[data-add-activity-day]');
+      if (addButton) {
+        const card = addButton.closest('.plan-card');
+        addActivityToDay(card, addButton.closest('.plan-day'));
+      }
+    });
+
+    document.querySelector('#plan-change-mode').addEventListener('change', event => {
+      const create = event.target.value === 'create';
+      document.querySelector('#plan-change-target-wrap').hidden = create;
+      if (create && planEditorCard) {
+        const first = timelineFromPlanCard(planEditorCard)[0];
+        const parts = timestampParts(first?.start_at || new Date().toISOString(), planOffsetFromTimeline(timelineFromPlanCard(planEditorCard)));
+        document.querySelector('#plan-change-name').value = '';
+        document.querySelector('#plan-change-date').value = parts.date;
+        document.querySelector('#plan-change-time').value = '10:00';
+        document.querySelector('#plan-change-note').value = '';
+      } else if (planEditorCard) {
+        fillPlanChangeFields(planEditorCard, document.querySelector('#plan-change-target').value);
+      }
+    });
+    document.querySelector('#plan-change-target').addEventListener('change', event => {
+      if (planEditorCard) fillPlanChangeFields(planEditorCard, event.target.value);
+    });
+    document.querySelector('#plan-change-form').addEventListener('submit', event => {
+      event.preventDefault();
+      applyPlanChange();
+    });
+    document.querySelector('#plan-change-cancel').addEventListener('click', () => {
+      document.querySelector('#plan-change-dialog').hidden = true;
+    });
+
+    ticketForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!accountId) {
+        registerGate.hidden = false;
+        document.querySelector('#register-error').textContent = 'Сначала зарегистрируйтесь или войдите в аккаунт.';
+        document.querySelector('#register-full-name').focus();
+        return;
+      }
+      clearFormError(ticketForm, ticketErrorSummary);
+      const originInput = document.querySelector('#ticket-origin');
+      const destinationInput = document.querySelector('#ticket-destination');
+      const departureInput = document.querySelector('#ticket-departure');
+      const returnInput = document.querySelector('#ticket-return');
+      const adultsInput = document.querySelector('#ticket-adults');
+      const returnDate = parseRussianDate(returnInput.value);
+      let validationMessage = '';
+      let invalidFields = [];
+      if (!originInput.value.trim()) {
+        validationMessage = 'Укажите город отправления.'; invalidFields = [originInput];
+      } else if (!destinationInput.value.trim()) {
+        validationMessage = 'Укажите город назначения.'; invalidFields = [destinationInput];
+      } else if (originInput.value.trim().toLocaleLowerCase('ru') === destinationInput.value.trim().toLocaleLowerCase('ru')) {
+        validationMessage = 'Города отправления и назначения должны отличаться.'; invalidFields = [originInput, destinationInput];
+      } else if (!departureInput.value) {
+        validationMessage = 'Укажите дату вылета.'; invalidFields = [departureInput];
+      } else if (!returnInput.value.trim()) {
+        validationMessage = 'Укажите дату обратного рейса.'; invalidFields = [returnInput];
+      } else if (!returnDate) {
+        validationMessage = 'Введите дату обратного рейса полностью в формате ДД.ММ.ГГГГ.'; invalidFields = [returnInput];
+      } else if (returnDate && returnDate < departureInput.value) {
+        validationMessage = 'Дата обратного рейса не может быть раньше даты вылета.'; invalidFields = [returnInput];
+      } else if (Number(adultsInput.value) < 1 || Number(adultsInput.value) > 9) {
+        validationMessage = 'Укажите от 1 до 9 пассажиров.'; invalidFields = [adultsInput];
+      }
+      if (validationMessage) {
+        showFormError(ticketForm, validationMessage, invalidFields, ticketErrorSummary);
+        ticketMessage.textContent = '';
+        return;
+      }
+      selectedFlightOffer = null;
+      document.querySelector('#hotel-continuation').hidden = true;
+      document.querySelector('#plan-variants').innerHTML = '';
+      selectionSummary();
+      const button = ticketForm.querySelector('button[type=submit]');
+      setLoading(button, true);
+      ticketMessage.className = 'message';
+      ticketMessage.textContent = 'Ищем варианты…';
+      ticketOffersList.innerHTML = skeletons(3);
+      moreTicketOffers.hidden = true;
+      visibleTicketCount = 5;
+      try {
+        const result = await api('/ticket-search', {method: 'POST', body: JSON.stringify({
+          origin: originInput.dataset.locationCode || originInput.value,
+          destination: destinationInput.dataset.locationCode || destinationInput.value,
+          departure_date: departureInput.value,
+          return_date: returnDate,
+          adults: Number(document.querySelector('#ticket-adults').value),
+          checked_baggage_required: document.querySelector('#ticket-baggage').checked,
+          strict_baggage: document.querySelector('#ticket-baggage').checked,
+          visa_free_countries: [],
+          sort_by: ticketSort.value
+        })});
+        currentSearchId = result.search_id;
+        renderOffers(result.offers);
+        ticketMessage.textContent = `Найдено вариантов: ${result.offers.length}. Цены демонстрационные.`;
+        toast(`Нашли ${result.offers.length} вариантов`);
+      } catch (error) {
+        const displayError = friendlyError(error.message);
+        const errorFields = /origin/i.test(error.message) ? [originInput] : /destination/i.test(error.message) ? [destinationInput] : /return date/i.test(error.message) ? [returnInput] : [];
+        showFormError(ticketForm, displayError, errorFields, ticketErrorSummary);
+        ticketMessage.className = 'message error';
+        ticketMessage.textContent = '';
+        ticketOffersList.innerHTML = '<div class="empty">Исправьте данные выше и повторите поиск</div>';
+        toast(displayError, 'error');
+      } finally {
+        setLoading(button, false);
+      }
+    });
+
+    ticketForm.addEventListener('input', event => {
+      if (!event.target.classList.contains('field-invalid')) return;
+      event.target.classList.remove('field-invalid');
+      event.target.removeAttribute('aria-invalid');
+      if (!ticketForm.querySelector('.field-invalid')) ticketErrorSummary.hidden = true;
+    });
+
+    ticketSort.addEventListener('change', async () => {
+      if (!currentOfferIds.length) return;
+      try {
+        const offers = await api('/ticket-search/sort', {method: 'POST', body: JSON.stringify({search_id: currentSearchId, sort_by: ticketSort.value, offer_ids: currentOfferIds})});
+        visibleTicketCount = 5;
+        renderOffers(offers);
+      } catch (error) {
+        ticketMessage.className = 'message error';
+        ticketMessage.textContent = error.message;
+      }
+    });
+
+    ticketOffersList.addEventListener('click', async event => {
+      const button = event.target.closest('button[data-select-offer]');
+      if (!button) return;
+      setLoading(button, true);
+      try {
+        await api('/trip-plan/selection', {method: 'POST', body: JSON.stringify({search_id: currentSearchId, offer_id: button.dataset.selectOffer})});
+        selectedFlightOffer = currentOffers.find(item => item.id === button.dataset.selectOffer);
+        clearSavedPlans();
+        const passengers = Number(document.querySelector('#ticket-adults').value);
+        bookingDraft.flight = selectedFlightOffer;
+        bookingDraft.passengers = passengers;
+        bookingDraft.original_passengers = passengers;
+        saveBookingDraft(); renderBookings();
+        ticketOffersList.querySelectorAll('.offer').forEach(item => item.classList.toggle('selected', item.dataset.offerId === button.dataset.selectOffer));
+        ticketMessage.className = 'message';
+        ticketMessage.textContent = 'Вариант добавлен в план поездки. Бронирование не выполнялось.';
+        toast('Вариант добавлен в план');
+        showHotelContinuationPopup(prepareHotelContinuation());
+      } catch (error) {
+        ticketMessage.className = 'message error';
+        ticketMessage.textContent = error.message;
+      } finally {
+        setLoading(button, false);
+      }
+    });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      setLoading(button, true);
+      message.className = 'message';
+      message.textContent = '';
+      try {
+        const departure = document.querySelector('#departure-at').value;
+        await api('/flights', {method: 'POST', body: JSON.stringify({
+          flight_number: document.querySelector('#flight-number').value,
+          departure_at: new Date(departure).toISOString(),
+          origin: document.querySelector('#monitor-origin').value || null,
+          destination: document.querySelector('#monitor-destination').value || null
+        })});
+        form.reset();
+        message.textContent = 'Рейс добавлен.';
+        toast('Рейс добавлен в мониторинг');
+        await refresh();
+      } catch (error) {
+        message.className = 'message error';
+        message.textContent = error.message;
+      } finally {
+        setLoading(button, false);
+      }
+    });
+
+    flightsList.addEventListener('click', async event => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      setLoading(button, true);
+      try {
+        if (button.dataset.action === 'alternatives') {
+          const result = await api(`/flights/${button.dataset.id}/alternatives`, {method: 'POST', body: JSON.stringify({
+            adults: Number(document.querySelector('#ticket-adults').value),
+            checked_baggage_required: document.querySelector('#ticket-baggage').checked,
+            strict_baggage: document.querySelector('#ticket-baggage').checked,
+            visa_free_countries: [],
+            sort_by: ticketSort.value
+          })});
+          currentSearchId = result.search_id;
+          visibleTicketCount = 5;
+          renderOffers(result.offers);
+          ticketMessage.textContent = 'Найдены альтернативы для сорванного рейса.';
+          window.scrollTo({top: 0, behavior: 'smooth'});
+        } else if (button.dataset.action === 'delay' || button.dataset.action === 'cancel') {
+          const delay = button.dataset.action === 'delay' ? 75 : 0;
+          await api(`/demo/flights/${button.dataset.id}/observation`, {method: 'POST', body: JSON.stringify({
+            state: button.dataset.action === 'delay' ? 'delayed' : 'cancelled',
+            observed_at: new Date().toISOString(),
+            delay_minutes: delay
+          })});
+          await api(`/flights/${button.dataset.id}/check`, {method: 'POST'});
+        } else {
+          await api(`/flights/${button.dataset.id}/check`, {method: 'POST'});
+        }
+        await refresh();
+      } catch (error) {
+        message.className = 'message error';
+        message.textContent = error.message;
+      } finally {
+        setLoading(button, false);
+      }
+    });
+
+    refresh().catch(error => {
+      message.className = 'message error';
+      message.textContent = error.message;
+    });
+
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    document.querySelector('#ticket-departure').value = tomorrow.toISOString().slice(0, 10);
+    const defaultReturn = new Date(tomorrow.getTime() + 7 * 86400000);
+    document.querySelector('#ticket-return').value = `${String(defaultReturn.getDate()).padStart(2, '0')}.${String(defaultReturn.getMonth() + 1).padStart(2, '0')}.${defaultReturn.getFullYear()}`;
+    document.querySelector('#hotel-check-in').value = tomorrow.toISOString().slice(0, 10);
+    document.querySelector('#departure-at').value = `${tomorrow.toISOString().slice(0, 10)}T10:00`;
+    document.querySelector('#trip-start').value = tomorrow.toISOString().slice(0, 10);
+    const week = new Date(tomorrow.getTime() + 7 * 86400000);
+    document.querySelector('#trip-end').value = week.toISOString().slice(0, 10);
+    document.querySelector('#inventory-start').value = new Date(tomorrow.setHours(14,0,0,0)).toISOString().slice(0,16);
+    document.querySelector('#inventory-end').value = new Date(week.setHours(10,0,0,0)).toISOString().slice(0,16);
+    currentHotelNights = Number(bookingDraft.nights || bookingDraft.hotel?.nights || 0);
+    selectionSummary();
+    renderBookings();
+    refreshTrip().catch(() => {});
+  </script>
+</body>
+</html>

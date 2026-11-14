@@ -1,0 +1,2 @@
+"""Alfred flight monitoring service."""
+
