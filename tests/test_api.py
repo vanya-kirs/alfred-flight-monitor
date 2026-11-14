@@ -140,7 +140,9 @@ def test_home_page_serves_flight_dashboard() -> None:
     assert 'scrypt' in response.text
     assert 'SQLite' in response.text
     assert 'eventual consistency' in response.text
-    assert 'GitHub — добавим позже' in response.text
+    assert 'href="https://github.com/vanya-kirs/alfred-flight-monitor"' in response.text
+    assert 'GitHub — исходный код' in response.text
+    assert 'GitHub — добавим позже' not in response.text
     assert 'id="hotel-next-step"' in response.text
     assert 'function showHotelContinuationPopup' in response.text
     assert 'id="plan-change-dialog"' in response.text
