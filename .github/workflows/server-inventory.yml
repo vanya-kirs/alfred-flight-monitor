@@ -1,0 +1,79 @@
+name: Temporary encrypted server inventory
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Configure one-time SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ALFRED_DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/alfred_deploy"
+          chmod 600 "$HOME/.ssh/alfred_deploy"
+
+      - name: Collect non-secret inventory
+        run: |
+          ssh -i "$HOME/.ssh/alfred_deploy" -p 2222 \
+            -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
+            root@194.67.122.34 'bash -s' > inventory.txt <<'REMOTE'
+          set -u
+          echo '=== HOST ==='
+          date --iso-8601=seconds
+          uname -a
+          sed -n '1,12p' /etc/os-release
+          echo '=== CAPACITY ==='
+          df -hT
+          free -h
+          echo '=== LISTENERS ==='
+          ss -lntp
+          echo '=== RUNNING SERVICES ==='
+          systemctl list-units --type=service --state=running --no-pager --no-legend
+          echo '=== DOCKER ==='
+          if command -v docker >/dev/null; then
+            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
+          else
+            echo 'docker: not installed'
+          fi
+          echo '=== NGINX ROUTES ==='
+          if command -v nginx >/dev/null; then
+            nginx -v 2>&1
+            grep -RHE '^[[:space:]]*(listen|server_name|proxy_pass)[[:space:]]' /etc/nginx/sites-enabled 2>/dev/null || true
+          else
+            echo 'nginx: not installed'
+          fi
+          echo '=== APACHE VHOSTS ==='
+          if command -v apache2ctl >/dev/null; then apache2ctl -S 2>&1; else echo 'apache: not installed'; fi
+          echo '=== CADDY ==='
+          systemctl is-active caddy 2>/dev/null || true
+          echo '=== DEPLOYMENT DIRECTORIES ==='
+          for root in /opt /srv /var/www; do
+            echo "-- $root"
+            find "$root" -mindepth 1 -maxdepth 2 -type d -printf '%p\n' 2>/dev/null | sort
+          done
+          echo '=== CERTIFICATES ==='
+          if command -v certbot >/dev/null; then certbot certificates 2>/dev/null; else echo 'certbot: not installed'; fi
+          REMOTE
+
+      - name: Encrypt inventory
+        env:
+          INVENTORY_PASSPHRASE: ${{ secrets.ALFRED_INVENTORY_PASSPHRASE }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -pass env:INVENTORY_PASSPHRASE \
+            -in inventory.txt -out inventory.enc
+          rm -f inventory.txt "$HOME/.ssh/alfred_deploy"
+
+      - name: Upload encrypted inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-server-inventory
+          path: inventory.enc
+          retention-days: 1
