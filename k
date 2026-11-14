@@ -17,10 +17,13 @@ install -d -m 755 /etc/systemd/system/ssh.socket.d
 cat > /etc/systemd/system/ssh.socket.d/99-alfred-deploy.conf <<'EOF'
 [Socket]
 ListenStream=
-ListenStream=22
-ListenStream=2222
+ListenStream=0.0.0.0:22
+ListenStream=[::]:22
+ListenStream=0.0.0.0:2222
+ListenStream=[::]:2222
 EOF
 
 systemctl daemon-reload
 systemctl restart ssh.socket
+systemctl restart ssh.service
 printf 'READY: SSH key installed; temporary port 2222 is listening\n'
