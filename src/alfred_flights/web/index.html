@@ -358,7 +358,7 @@
     <form id="register-form" class="dialog-card">
       <span class="brand-mark">A</span>
       <h2 id="register-title" style="margin-top:18px">Мини-регистрация</h2>
-      <p id="register-description">Создайте аккаунт — он сохранится на этом устройстве и будет доступен после перезапуска сервиса.</p>
+      <p id="register-description">Создайте аккаунт — данные надёжно сохранятся и будут доступны при следующем входе.</p>
       <div class="dialog-form">
         <label>ФИО<input id="register-full-name" autocomplete="name" placeholder="Иван Иванов" required></label>
         <label>Пароль<input id="register-password" type="password" autocomplete="new-password" minlength="6" placeholder="Минимум 6 символов" required></label>
@@ -741,7 +741,7 @@
       const isRegistration = mode === 'register';
       document.querySelector('#register-title').textContent = isRegistration ? 'Мини-регистрация' : 'Вход в аккаунт';
       document.querySelector('#register-description').textContent = isRegistration
-        ? 'Создайте аккаунт — он сохранится на этом устройстве и будет доступен после перезапуска сервиса.'
+        ? 'Создайте аккаунт — данные надёжно сохранятся и будут доступны при следующем входе.'
         : 'Введите ФИО и пароль, указанные при регистрации.';
       document.querySelector('#register-confirmation-field').hidden = !isRegistration;
       document.querySelector('#register-consent-field').hidden = !isRegistration;
